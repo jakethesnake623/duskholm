@@ -1,7 +1,8 @@
 extends CharacterBody2D
 
 signal health_changed(current: int, maximum: int)
-signal died
+signal souls_changed(current: int)
+signal died(death_pos: Vector2, soul_amount: int)
 
 # --- Movement ---
 const SPEED         = 200.0
@@ -21,12 +22,16 @@ const ATTACK_DURATION = 0.15
 
 # --- Health ---
 const MAX_HEALTH      = 5
-const I_FRAMES        = 1.5    # invincibility seconds after a hit
+const I_FRAMES        = 1.5
 const KNOCKBACK_FORCE = 320.0
 
-var health         := MAX_HEALTH
-var i_frames_timer := 0.0
-var spawn_position : Vector2
+var health            := MAX_HEALTH
+var i_frames_timer    := 0.0
+var spawn_position    : Vector2
+var last_safe_position: Vector2   # where the death orb spawns on a fall
+
+# --- Souls ---
+var souls := 0
 
 var coyote_timer      := 0.0
 var jump_buffer_timer := 0.0
@@ -41,7 +46,8 @@ var facing_right      := true
 
 func _ready() -> void:
 	add_to_group("player")
-	spawn_position = global_position
+	spawn_position     = global_position
+	last_safe_position = global_position
 
 
 func _physics_process(delta: float) -> void:
@@ -65,7 +71,8 @@ func _apply_gravity(delta: float) -> void:
 
 func _tick_timers(delta: float) -> void:
 	if is_on_floor():
-		coyote_timer = COYOTE_TIME
+		coyote_timer       = COYOTE_TIME
+		last_safe_position = global_position   # track last grounded spot
 	else:
 		coyote_timer = max(coyote_timer - delta, 0.0)
 
@@ -129,14 +136,14 @@ func _swing_nail() -> void:
 
 func take_damage(amount: int, knockback_dir: Vector2 = Vector2.ZERO) -> void:
 	if i_frames_timer > 0.0:
-		return  # still invincible
+		return
 
 	health = max(health - amount, 0)
 	i_frames_timer = I_FRAMES
 
 	if knockback_dir != Vector2.ZERO:
 		velocity.x = knockback_dir.normalized().x * KNOCKBACK_FORCE
-		velocity.y = -200.0  # always pop upward slightly on hit
+		velocity.y = -200.0
 
 	health_changed.emit(health, MAX_HEALTH)
 
@@ -145,7 +152,6 @@ func take_damage(amount: int, knockback_dir: Vector2 = Vector2.ZERO) -> void:
 
 
 func kill() -> void:
-	# Instant death regardless of i-frames (pits, death zones)
 	if not is_physics_processing():
 		return
 	health = 0
@@ -154,7 +160,11 @@ func kill() -> void:
 
 
 func _die() -> void:
-	died.emit()
+	# Drop all souls at last known safe ground position
+	died.emit(last_safe_position, souls)
+	souls = 0
+	souls_changed.emit(souls)
+
 	set_physics_process(false)
 	visual.modulate.a = 0.0
 	await get_tree().create_timer(0.8).timeout
@@ -165,17 +175,28 @@ func _respawn() -> void:
 	health          = MAX_HEALTH
 	global_position = spawn_position
 	velocity        = Vector2.ZERO
-	i_frames_timer  = I_FRAMES   # grace window so you don't die immediately again
+	i_frames_timer  = I_FRAMES
 	visual.modulate.a = 1.0
 	set_physics_process(true)
 	health_changed.emit(health, MAX_HEALTH)
+
+
+# ── Souls ──────────────────────────────────────────────────────────────────────
+
+func gain_souls(amount: int) -> void:
+	souls += amount
+	souls_changed.emit(souls)
+
+
+func retrieve_souls(amount: int) -> void:
+	souls += amount
+	souls_changed.emit(souls)
 
 
 # ── Visuals ────────────────────────────────────────────────────────────────────
 
 func _update_visuals() -> void:
 	if i_frames_timer > 0.0:
-		# Blink by oscillating opacity
 		visual.modulate.a = 0.25 + 0.75 * abs(sin(Time.get_ticks_msec() * 0.015))
 	else:
 		visual.modulate.a = 1.0
