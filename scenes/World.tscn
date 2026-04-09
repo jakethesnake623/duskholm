@@ -1,8 +1,9 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/World.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/HUD.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/Enemy.tscn" id="4"]
 
 [sub_resource type="RectangleShape2D" id="4"]
 size = Vector2(2400.0, 40.0)
@@ -83,3 +84,14 @@ position = Vector2(200.0, 350.0)
 zoom = Vector2(2.0, 2.0)
 
 [node name="HUD" parent="." instance=ExtResource("3")]
+
+[node name="SkeletonA" parent="." instance=ExtResource("4")]
+position = Vector2(500.0, 330.0)
+
+[node name="SkeletonB" parent="." instance=ExtResource("4")]
+position = Vector2(620.0, 150.0)
+variant = 1
+
+[node name="SkeletonC" parent="." instance=ExtResource("4")]
+position = Vector2(940.0, 230.0)
+variant = 2

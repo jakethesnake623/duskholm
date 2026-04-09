@@ -40,6 +40,7 @@ var facing_right      := true
 
 
 func _ready() -> void:
+	add_to_group("player")
 	spawn_position = global_position
 
 
