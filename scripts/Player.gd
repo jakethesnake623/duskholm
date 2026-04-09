@@ -1,20 +1,32 @@
 extends CharacterBody2D
 
+signal health_changed(current: int, maximum: int)
+signal died
+
 # --- Movement ---
 const SPEED         = 200.0
 const ACCELERATION  = 1400.0
 const FRICTION      = 1600.0
 const JUMP_VELOCITY = -480.0
 const GRAVITY       = 1200.0
-const TERM_VEL      = 1200.0   # terminal fall speed
+const TERM_VEL      = 1200.0
 
 # --- Polish timers ---
-const COYOTE_TIME       = 0.12  # grace window after walking off a ledge
-const JUMP_BUFFER_TIME  = 0.12  # pre-press window before landing
+const COYOTE_TIME      = 0.12
+const JUMP_BUFFER_TIME = 0.12
 
 # --- Attack ---
 const ATTACK_COOLDOWN = 0.45
-const ATTACK_DURATION = 0.15   # how long the hitbox is active
+const ATTACK_DURATION = 0.15
+
+# --- Health ---
+const MAX_HEALTH      = 5
+const I_FRAMES        = 1.5    # invincibility seconds after a hit
+const KNOCKBACK_FORCE = 320.0
+
+var health         := MAX_HEALTH
+var i_frames_timer := 0.0
+var spawn_position : Vector2
 
 var coyote_timer      := 0.0
 var jump_buffer_timer := 0.0
@@ -22,8 +34,13 @@ var attack_timer      := 0.0
 var is_attacking      := false
 var facing_right      := true
 
-@onready var nail_hitbox   : Area2D          = $NailHitbox
+@onready var visual        : ColorRect        = $Visual
+@onready var nail_hitbox   : Area2D           = $NailHitbox
 @onready var nail_collision: CollisionShape2D = $NailHitbox/NailCollision
+
+
+func _ready() -> void:
+	spawn_position = global_position
 
 
 func _physics_process(delta: float) -> void:
@@ -32,6 +49,7 @@ func _physics_process(delta: float) -> void:
 	_handle_movement(delta)
 	_handle_jump()
 	_handle_attack()
+	_update_visuals()
 	move_and_slide()
 
 
@@ -45,7 +63,6 @@ func _apply_gravity(delta: float) -> void:
 # ── Timers ─────────────────────────────────────────────────────────────────────
 
 func _tick_timers(delta: float) -> void:
-	# Coyote time: stays fresh while grounded, counts down in the air
 	if is_on_floor():
 		coyote_timer = COYOTE_TIME
 	else:
@@ -53,12 +70,12 @@ func _tick_timers(delta: float) -> void:
 
 	jump_buffer_timer = max(jump_buffer_timer - delta, 0.0)
 	attack_timer      = max(attack_timer      - delta, 0.0)
+	i_frames_timer    = max(i_frames_timer    - delta, 0.0)
 
-	# End attack hitbox after active window expires
 	if is_attacking and attack_timer < ATTACK_COOLDOWN - ATTACK_DURATION:
 		is_attacking = false
-		nail_hitbox.monitoring    = false
-		nail_collision.disabled   = true
+		nail_hitbox.monitoring  = false
+		nail_collision.disabled = true
 
 
 # ── Movement ───────────────────────────────────────────────────────────────────
@@ -83,13 +100,11 @@ func _handle_jump() -> void:
 	if Input.is_action_just_pressed("jump"):
 		jump_buffer_timer = JUMP_BUFFER_TIME
 
-	# Consume buffer + coyote together so both windows feel natural
 	if jump_buffer_timer > 0.0 and coyote_timer > 0.0:
 		velocity.y        = JUMP_VELOCITY
 		coyote_timer      = 0.0
 		jump_buffer_timer = 0.0
 
-	# Variable height: release early → shorter arc
 	if Input.is_action_just_released("jump") and velocity.y < -150.0:
 		velocity.y = -150.0
 
@@ -104,9 +119,62 @@ func _handle_attack() -> void:
 func _swing_nail() -> void:
 	is_attacking = true
 	attack_timer = ATTACK_COOLDOWN
-
 	nail_hitbox.monitoring  = true
 	nail_collision.disabled = false
+	nail_hitbox.position.x  = 40.0 if facing_right else -40.0
 
-	# Place hitbox in front of the player based on facing direction
-	nail_hitbox.position.x = 40.0 if facing_right else -40.0
+
+# ── Health ─────────────────────────────────────────────────────────────────────
+
+func take_damage(amount: int, knockback_dir: Vector2 = Vector2.ZERO) -> void:
+	if i_frames_timer > 0.0:
+		return  # still invincible
+
+	health = max(health - amount, 0)
+	i_frames_timer = I_FRAMES
+
+	if knockback_dir != Vector2.ZERO:
+		velocity.x = knockback_dir.normalized().x * KNOCKBACK_FORCE
+		velocity.y = -200.0  # always pop upward slightly on hit
+
+	health_changed.emit(health, MAX_HEALTH)
+
+	if health <= 0:
+		_die()
+
+
+func kill() -> void:
+	# Instant death regardless of i-frames (pits, death zones)
+	if not is_physics_processing():
+		return
+	health = 0
+	health_changed.emit(health, MAX_HEALTH)
+	_die()
+
+
+func _die() -> void:
+	died.emit()
+	set_physics_process(false)
+	visual.modulate.a = 0.0
+	await get_tree().create_timer(0.8).timeout
+	_respawn()
+
+
+func _respawn() -> void:
+	health          = MAX_HEALTH
+	global_position = spawn_position
+	velocity        = Vector2.ZERO
+	i_frames_timer  = I_FRAMES   # grace window so you don't die immediately again
+	visual.modulate.a = 1.0
+	set_physics_process(true)
+	health_changed.emit(health, MAX_HEALTH)
+
+
+# ── Visuals ────────────────────────────────────────────────────────────────────
+
+func _update_visuals() -> void:
+	if i_frames_timer > 0.0:
+		# Blink by oscillating opacity
+		visual.modulate.a = 0.25 + 0.75 * abs(sin(Time.get_ticks_msec() * 0.015))
+	else:
+		visual.modulate.a = 1.0
