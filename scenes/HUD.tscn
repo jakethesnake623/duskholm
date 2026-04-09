@@ -10,17 +10,17 @@ offset_left = 16.0
 offset_top = 16.0
 theme_override_constants/separation = 8
 
-[node name="SoulsContainer" type="VBoxContainer" parent="."]
+[node name="EmbersContainer" type="VBoxContainer" parent="."]
 offset_left = 16.0
 offset_top = 648.0
 theme_override_constants/separation = 2
 
-[node name="SoulsHeader" type="Label" parent="SoulsContainer"]
+[node name="EmbersHeader" type="Label" parent="EmbersContainer"]
 theme_override_font_sizes/font_size = 11
 theme_override_colors/font_color = Color(0.72, 0.60, 0.18, 0.85)
-text = "SOULS"
+text = "EMBERS"
 
-[node name="SoulsLabel" type="Label" parent="SoulsContainer"]
+[node name="EmbersLabel" type="Label" parent="EmbersContainer"]
 theme_override_font_sizes/font_size = 28
 theme_override_colors/font_color = Color(0.95, 0.78, 0.20, 1.0)
 text = "0"

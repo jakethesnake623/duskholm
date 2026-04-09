@@ -25,7 +25,7 @@ var damage     : int
 enum State { PATROL, CHASE, ATTACK, HURT, DEAD }
 var state        := State.PATROL
 var health       := 0
-var souls_value  := 0        # souls granted to player on death
+var embers_value := 0        # embers granted on death
 var facing_right := true
 var patrol_dir   := 1.0
 var state_timer  := 0.0
@@ -63,19 +63,19 @@ func _apply_variant() -> void:
 			max_health   = 3
 			move_speed   = 80.0
 			damage       = 1
-			souls_value  = 100
+			embers_value = 100
 			base_scale_x = 1.0
 		1:  # Tall — quick and fragile
 			max_health   = 2
 			move_speed   = 110.0
 			damage       = 1
-			souls_value  = 75
+			embers_value = 75
 			base_scale_x = 0.80
 		2:  # Ancient — slow, tanky, hits harder
 			max_health   = 5
 			move_speed   = 55.0
 			damage       = 2
-			souls_value  = 300
+			embers_value = 300
 			base_scale_x = 1.25
 
 
@@ -232,7 +232,7 @@ func _on_body_exited_detect(body: Node) -> void:
 func _on_hurtbox_hit(area: Area2D) -> void:
 	# Fires when the player's nail hitbox overlaps this enemy's hurtbox
 	if area.name == "NailHitbox":
-		_take_damage(1)
+		_take_damage(GameData.get_nail_damage())
 
 
 func _on_attack_body(body: Node) -> void:
@@ -274,9 +274,8 @@ func _die() -> void:
 	detect.monitoring   = false
 	velocity            = Vector2.ZERO
 
-	# Grant souls to the player before disappearing
-	if is_instance_valid(player_ref) and player_ref.has_method("gain_souls"):
-		player_ref.gain_souls(souls_value)
+	# Grant embers to the player before disappearing
+	GameData.gain_embers(embers_value)
 
 	# Crumble: fade and shrink into the ground
 	var tween := create_tween().set_parallel(true)

@@ -1,9 +1,10 @@
-[gd_scene load_steps=20 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="Script" path="res://scripts/World.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/HUD.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/Enemy.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/Merchant.tscn" id="5"]
 
 ; ── Shared collision shapes ────────────────────────────────────────────────────
 [sub_resource type="RectangleShape2D" id="10"]
@@ -409,6 +410,13 @@ limit_left = 0
 limit_right = 1280
 limit_top = 0
 limit_bottom = 720
+
+; ── Merchants ──────────────────────────────────────────────────────────────────
+[node name="MerchantRoom1" parent="." instance=ExtResource("5")]
+position = Vector2(100.0, 660.0)
+
+[node name="MerchantRoom3" parent="." instance=ExtResource("5")]
+position = Vector2(640.0, 1380.0)
 
 ; ── HUD ────────────────────────────────────────────────────────────────────────
 [node name="HUD" parent="." instance=ExtResource("3")]

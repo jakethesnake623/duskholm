@@ -4,7 +4,7 @@ const MASK_FULL  = Color(0.85, 0.18, 0.18, 1.0)
 const MASK_EMPTY = Color(0.18, 0.18, 0.20, 1.0)
 
 @onready var mask_container: HBoxContainer = $MaskContainer
-@onready var souls_label   : Label         = $SoulsContainer/SoulsLabel
+@onready var embers_label  : Label         = $EmbersContainer/EmbersLabel
 
 var masks: Array[ColorRect] = []
 
@@ -27,5 +27,5 @@ func on_health_changed(current: int, _maximum: int) -> void:
 		masks[i].color = MASK_FULL if i < current else MASK_EMPTY
 
 
-func on_souls_changed(current: int) -> void:
-	souls_label.text = str(current)
+func on_embers_changed(current: int) -> void:
+	embers_label.text = str(current)
