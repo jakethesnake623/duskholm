@@ -15,6 +15,11 @@ var death_orb : Node = null
 func _ready() -> void:
 	camera = player.get_node("Camera2D")
 
+	# Place player at saved spawn (default on new game, well position on load)
+	player.global_position = GameData.spawn_position
+	player.spawn_position  = GameData.spawn_position
+	_set_initial_room()
+
 	hud.setup(GameData.get_max_health())
 	hud.on_embers_changed(GameData.embers)
 
@@ -38,6 +43,18 @@ func _on_upgrade_purchased(key: String) -> void:
 	if key == "vitality":
 		player.health = GameData.get_max_health()
 	hud.on_health_changed(player.health, GameData.get_max_health())
+
+
+# ── Initial room ──────────────────────────────────────────────────────────────
+
+func _set_initial_room() -> void:
+	var pos := GameData.spawn_position
+	if pos.y >= 720:
+		_set_room(0, 1280, 720, 1440)
+	elif pos.x >= 1280:
+		_set_room(1280, 2560, 0, 720)
+	else:
+		_set_room(0, 1280, 0, 720)
 
 
 # ── Room transitions ───────────────────────────────────────────────────────────

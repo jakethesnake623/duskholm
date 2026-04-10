@@ -47,6 +47,7 @@ var dash_cd_timer := 0.0
 @onready var visual        : ColorRect        = $Visual
 @onready var nail_hitbox   : Area2D           = $NailHitbox
 @onready var nail_collision: CollisionShape2D = $NailHitbox/NailCollision
+@onready var nail_visual   : ColorRect        = $NailHitbox/NailVisual
 
 
 func _ready() -> void:
@@ -54,6 +55,14 @@ func _ready() -> void:
 	spawn_position     = global_position
 	last_safe_position = global_position
 	health = GameData.get_max_health()
+	nail_hitbox.area_entered.connect(_on_nail_area_entered)
+
+
+func _on_nail_area_entered(area: Area2D) -> void:
+	if area.name == "Hurtbox":
+		var parent := area.get_parent()
+		if parent.has_method("_take_damage"):
+			parent._take_damage(GameData.get_nail_damage())
 
 
 func _physics_process(delta: float) -> void:
@@ -96,6 +105,7 @@ func _tick_timers(delta: float) -> void:
 		is_attacking = false
 		nail_hitbox.monitoring  = false
 		nail_collision.disabled = true
+		nail_visual.visible     = false
 
 
 # ── Movement ───────────────────────────────────────────────────────────────────
@@ -170,6 +180,8 @@ func _swing_nail() -> void:
 	nail_hitbox.monitoring  = true
 	nail_collision.disabled = false
 	nail_hitbox.position.x  = GameData.get_nail_range() if facing_right else -GameData.get_nail_range()
+	nail_visual.visible     = true
+	nail_visual.scale.x     = 1.0 if facing_right else -1.0
 
 
 # ── Health ─────────────────────────────────────────────────────────────────────
@@ -189,6 +201,12 @@ func take_damage(amount: int, knockback_dir: Vector2 = Vector2.ZERO) -> void:
 
 	if health <= 0:
 		_die()
+
+
+func rest(well_position: Vector2) -> void:
+	spawn_position = well_position + Vector2(0, -8)
+	health = GameData.get_max_health()
+	health_changed.emit(health, GameData.get_max_health())
 
 
 func kill() -> void:

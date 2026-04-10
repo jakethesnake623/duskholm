@@ -1,10 +1,11 @@
-[gd_scene load_steps=21 format=3]
+[gd_scene load_steps=22 format=3]
 
 [ext_resource type="Script" path="res://scripts/World.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/HUD.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/Enemy.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/Merchant.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/SoulWell.tscn" id="6"]
 
 ; ── Shared collision shapes ────────────────────────────────────────────────────
 [sub_resource type="RectangleShape2D" id="10"]
@@ -406,6 +407,8 @@ position = Vector2(200.0, 620.0)
 
 [node name="Camera2D" type="Camera2D" parent="Player"]
 zoom = Vector2(2.0, 2.0)
+position_smoothing_enabled = true
+position_smoothing_speed = 8.0
 limit_left = 0
 limit_right = 1280
 limit_top = 0
@@ -417,6 +420,13 @@ position = Vector2(100.0, 660.0)
 
 [node name="MerchantRoom3" parent="." instance=ExtResource("5")]
 position = Vector2(640.0, 1380.0)
+
+; ── Soul Wells ─────────────────────────────────────────────────────────────────
+[node name="SoulWellRoom1" parent="." instance=ExtResource("6")]
+position = Vector2(800.0, 660.0)
+
+[node name="SoulWellRoom3" parent="." instance=ExtResource("6")]
+position = Vector2(320.0, 1380.0)
 
 ; ── HUD ────────────────────────────────────────────────────────────────────────
 [node name="HUD" parent="." instance=ExtResource("3")]

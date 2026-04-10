@@ -5,7 +5,8 @@ extends Node
 signal embers_changed(current: int)
 signal upgrade_purchased(key: String)
 
-var embers := 0
+var embers         := 0
+var spawn_position := Vector2(200.0, 620.0)
 
 # ── Upgrade catalogue ──────────────────────────────────────────────────────────
 
@@ -52,6 +53,60 @@ var upgrade_levels := {
 	"vitality": 0, "swiftness": 0, "edge": 0,
 	"reach": 0,    "double_jump": 0, "dash": 0,
 }
+
+
+# ── Save / Load ────────────────────────────────────────────────────────────────
+
+const SAVE_PATH := "user://save.json"
+
+func has_save() -> bool:
+	return FileAccess.file_exists(SAVE_PATH)
+
+
+func save() -> void:
+	var data := {
+		"embers":          embers,
+		"upgrade_levels":  upgrade_levels.duplicate(),
+		"spawn_x":         spawn_position.x,
+		"spawn_y":         spawn_position.y,
+	}
+	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(data, "\t"))
+
+
+func load_save() -> bool:
+	if not FileAccess.file_exists(SAVE_PATH):
+		return false
+	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if not file:
+		return false
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	if not parsed is Dictionary:
+		return false
+	var data := parsed as Dictionary
+	embers          = data.get("embers", 0)
+	spawn_position  = Vector2(data.get("spawn_x", 200.0), data.get("spawn_y", 620.0))
+	var levels      = data.get("upgrade_levels", {})
+	for key in upgrade_levels:
+		upgrade_levels[key] = int(levels.get(key, 0))
+	embers_changed.emit(embers)
+	return true
+
+
+func delete_save() -> void:
+	if FileAccess.file_exists(SAVE_PATH):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
+
+
+# ── Reset ─────────────────────────────────────────────────────────────────────
+
+func reset() -> void:
+	embers         = 0
+	spawn_position = Vector2(200.0, 620.0)
+	for key in upgrade_levels:
+		upgrade_levels[key] = 0
+	embers_changed.emit(0)
 
 
 # ── Ember economy ──────────────────────────────────────────────────────────────

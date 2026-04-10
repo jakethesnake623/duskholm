@@ -10,6 +10,8 @@ height = 48.0
 size = Vector2(36.0, 24.0)
 
 [node name="Player" type="CharacterBody2D"]
+floor_snap_length = 6.0
+wall_min_slide_angle = 0.0
 script = ExtResource("1")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
@@ -30,3 +32,11 @@ monitorable = false
 position = Vector2(40.0, 0.0)
 shape = SubResource("3")
 disabled = true
+
+[node name="NailVisual" type="ColorRect" parent="NailHitbox"]
+offset_left = 22.0
+offset_top = -12.0
+offset_right = 58.0
+offset_bottom = 12.0
+color = Color(0.9, 0.95, 1.0, 0.85)
+visible = false
