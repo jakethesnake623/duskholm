@@ -80,16 +80,17 @@ func _build_menu() -> Control:
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	var y := 300.0
-	for entry in [
-		["New Game",  _on_new_game],
-		["Load Game", _on_load_game],
-		["Settings",  _on_open_settings],
-	]:
-		var btn := _menu_button(entry[0], Vector2(490, y))
-		btn.pressed.connect(entry[1])
-		root.add_child(btn)
-		y += 64.0
+	var new_game_btn := _menu_button("New Game",  Vector2(490, 300.0))
+	var load_game_btn := _menu_button("Load Game", Vector2(490, 364.0))
+	var settings_btn  := _menu_button("Settings",  Vector2(490, 428.0))
+
+	new_game_btn.pressed.connect(_on_new_game)
+	load_game_btn.pressed.connect(_on_load_game)
+	settings_btn.pressed.connect(_on_open_settings)
+
+	root.add_child(new_game_btn)
+	root.add_child(load_game_btn)
+	root.add_child(settings_btn)
 
 	_no_save_label = Label.new()
 	_no_save_label.text = "No save data found."

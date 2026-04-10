@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3]
+[gd_scene load_steps=25 format=3]
 
 [ext_resource type="Script" path="res://scripts/World.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2"]
@@ -6,6 +6,8 @@
 [ext_resource type="PackedScene" path="res://scenes/Enemy.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/Merchant.tscn" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/SoulWell.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/AbilityGate.tscn" id="7"]
+[ext_resource type="PackedScene" path="res://scenes/DeathScreen.tscn" id="8"]
 
 ; ── Shared collision shapes ────────────────────────────────────────────────────
 [sub_resource type="RectangleShape2D" id="10"]
@@ -42,6 +44,9 @@ size = Vector2(120.0, 80.0)
 ; ── Death zone ─────────────────────────────────────────────────────────────────
 [sub_resource type="RectangleShape2D" id="20"]
 size = Vector2(6000.0, 100.0)
+
+[sub_resource type="RectangleShape2D" id="21"]
+size = Vector2(100.0, 24.0)
 
 ; ══════════════════════════════════════════════════════════════════════════════
 [node name="World" type="Node2D"]
@@ -81,6 +86,7 @@ position = Vector2(190.0, 570.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Room1/Platform1"]
 shape = SubResource("13")
+one_way_collision = true
 
 [node name="Visual" type="ColorRect" parent="Room1/Platform1"]
 offset_left = -90.0
@@ -94,6 +100,7 @@ position = Vector2(370.0, 470.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Room1/Platform2"]
 shape = SubResource("14")
+one_way_collision = true
 
 [node name="Visual" type="ColorRect" parent="Room1/Platform2"]
 offset_left = -80.0
@@ -107,6 +114,7 @@ position = Vector2(510.0, 390.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Room1/Platform3"]
 shape = SubResource("15")
+one_way_collision = true
 
 [node name="Visual" type="ColorRect" parent="Room1/Platform3"]
 offset_left = -60.0
@@ -120,6 +128,7 @@ position = Vector2(820.0, 510.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Room1/Platform4"]
 shape = SubResource("16")
+one_way_collision = true
 
 [node name="Visual" type="ColorRect" parent="Room1/Platform4"]
 offset_left = -100.0
@@ -133,6 +142,7 @@ position = Vector2(1060.0, 420.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Room1/Platform5"]
 shape = SubResource("13")
+one_way_collision = true
 
 [node name="Visual" type="ColorRect" parent="Room1/Platform5"]
 offset_left = -90.0
@@ -165,6 +175,7 @@ position = Vector2(1370.0, 600.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Room2/Platform1"]
 shape = SubResource("14")
+one_way_collision = true
 
 [node name="Visual" type="ColorRect" parent="Room2/Platform1"]
 offset_left = -80.0
@@ -178,6 +189,7 @@ position = Vector2(1550.0, 500.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Room2/Platform2"]
 shape = SubResource("13")
+one_way_collision = true
 
 [node name="Visual" type="ColorRect" parent="Room2/Platform2"]
 offset_left = -90.0
@@ -191,6 +203,7 @@ position = Vector2(1730.0, 380.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Room2/Platform3"]
 shape = SubResource("14")
+one_way_collision = true
 
 [node name="Visual" type="ColorRect" parent="Room2/Platform3"]
 offset_left = -80.0
@@ -204,6 +217,7 @@ position = Vector2(1900.0, 270.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Room2/Platform4"]
 shape = SubResource("17")
+one_way_collision = true
 
 [node name="Visual" type="ColorRect" parent="Room2/Platform4"]
 offset_left = -70.0
@@ -217,6 +231,7 @@ position = Vector2(2080.0, 360.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Room2/Platform5"]
 shape = SubResource("14")
+one_way_collision = true
 
 [node name="Visual" type="ColorRect" parent="Room2/Platform5"]
 offset_left = -80.0
@@ -230,6 +245,7 @@ position = Vector2(2290.0, 460.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Room2/Platform6"]
 shape = SubResource("16")
+one_way_collision = true
 
 [node name="Visual" type="ColorRect" parent="Room2/Platform6"]
 offset_left = -100.0
@@ -243,6 +259,7 @@ position = Vector2(2460.0, 570.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Room2/Platform7"]
 shape = SubResource("17")
+one_way_collision = true
 
 [node name="Visual" type="ColorRect" parent="Room2/Platform7"]
 offset_left = -70.0
@@ -305,6 +322,7 @@ position = Vector2(175.0, 1300.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Room3/Platform1"]
 shape = SubResource("16")
+one_way_collision = true
 
 [node name="Visual" type="ColorRect" parent="Room3/Platform1"]
 offset_left = -100.0
@@ -318,6 +336,7 @@ position = Vector2(420.0, 1190.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Room3/Platform2"]
 shape = SubResource("14")
+one_way_collision = true
 
 [node name="Visual" type="ColorRect" parent="Room3/Platform2"]
 offset_left = -80.0
@@ -331,6 +350,7 @@ position = Vector2(660.0, 1080.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Room3/Platform3"]
 shape = SubResource("17")
+one_way_collision = true
 
 [node name="Visual" type="ColorRect" parent="Room3/Platform3"]
 offset_left = -70.0
@@ -344,6 +364,7 @@ position = Vector2(900.0, 1210.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Room3/Platform4"]
 shape = SubResource("13")
+one_way_collision = true
 
 [node name="Visual" type="ColorRect" parent="Room3/Platform4"]
 offset_left = -90.0
@@ -357,11 +378,27 @@ position = Vector2(1100.0, 1320.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Room3/Platform5"]
 shape = SubResource("14")
+one_way_collision = true
 
 [node name="Visual" type="ColorRect" parent="Room3/Platform5"]
 offset_left = -80.0
 offset_top = -12.0
 offset_right = 80.0
+offset_bottom = 12.0
+color = Color(0.14, 0.11, 0.18, 1)
+
+; Escape ledge — reachable with double jump from Platform3, exits through pit gap with a single jump
+[node name="EscapeLedge" type="StaticBody2D" parent="Room3"]
+position = Vector2(600.0, 906.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room3/EscapeLedge"]
+shape = SubResource("21")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room3/EscapeLedge"]
+offset_left = -50.0
+offset_top = -12.0
+offset_right = 50.0
 offset_bottom = 12.0
 color = Color(0.14, 0.11, 0.18, 1)
 
@@ -372,6 +409,10 @@ variant = 2
 [node name="SkeletonE" parent="Room3" instance=ExtResource("4")]
 position = Vector2(950.0, 1320.0)
 variant = 2
+
+; ── Ability gate (pit from Room 1 → Room 3, requires Feather Step) ────────────
+[node name="PitGate" parent="." instance=ExtResource("7")]
+position = Vector2(600.0, 680.0)
 
 ; ── Transition triggers ────────────────────────────────────────────────────────
 [node name="Transitions" type="Node2D" parent="."]
@@ -417,9 +458,11 @@ limit_bottom = 720
 ; ── Merchants ──────────────────────────────────────────────────────────────────
 [node name="MerchantRoom1" parent="." instance=ExtResource("5")]
 position = Vector2(100.0, 660.0)
+dialogue_lines = PackedStringArray("...fire does not die... it waits...", "I remember warmth. What followed was not peace. It was absence.", "The Hearth called you here. That is not an accident.", "We burned. But we were alive. Can you say the same of this cold?", "Aldren feared what the fire could become. I think he feared the wrong thing.", "Something still breathes beneath the stone. You can feel it.")
 
 [node name="MerchantRoom3" parent="." instance=ExtResource("5")]
 position = Vector2(640.0, 1380.0)
+dialogue_lines = PackedStringArray("We burned too bright. All things that burn too bright become cinders.", "I have watched them wander for centuries. They are tired. Let them rest.", "The darkness is patient. Perhaps that is a kind of wisdom.", "Aldren tried to protect us with flame. You see what his protection built.", "Peace is not always warmth. Sometimes peace is simply... stillness.", "End the cycle. It is the only mercy left in this place.")
 
 ; ── Soul Wells ─────────────────────────────────────────────────────────────────
 [node name="SoulWellRoom1" parent="." instance=ExtResource("6")]
@@ -430,3 +473,5 @@ position = Vector2(320.0, 1380.0)
 
 ; ── HUD ────────────────────────────────────────────────────────────────────────
 [node name="HUD" parent="." instance=ExtResource("3")]
+
+[node name="DeathScreen" parent="." instance=ExtResource("8")]

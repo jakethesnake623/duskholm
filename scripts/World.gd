@@ -2,11 +2,12 @@ extends Node2D
 
 const SOUL_ORB_SCENE = preload("res://scenes/SoulOrb.tscn")
 
-@onready var player       : CharacterBody2D = $Player
-@onready var hud          : CanvasLayer     = $HUD
-@onready var death_zone   : Area2D          = $DeathZone
-@onready var h_transition : Area2D          = $Transitions/HorizontalTransition
-@onready var v_transition : Area2D          = $Transitions/VerticalTransition
+@onready var player        : CharacterBody2D = $Player
+@onready var hud           : CanvasLayer     = $HUD
+@onready var death_screen  : CanvasLayer     = $DeathScreen
+@onready var death_zone    : Area2D          = $DeathZone
+@onready var h_transition  : Area2D          = $Transitions/HorizontalTransition
+@onready var v_transition  : Area2D          = $Transitions/VerticalTransition
 
 var camera    : Camera2D
 var death_orb : Node = null
@@ -25,6 +26,8 @@ func _ready() -> void:
 
 	player.health_changed.connect(hud.on_health_changed)
 	player.died.connect(_on_player_died)
+	player.respawned.connect(_set_initial_room)
+	death_screen.continue_pressed.connect(player.respawn)
 
 	GameData.embers_changed.connect(hud.on_embers_changed)
 	GameData.upgrade_purchased.connect(_on_upgrade_purchased)
@@ -91,15 +94,15 @@ func _on_player_died(death_pos: Vector2, ember_amount: int) -> void:
 		death_orb.queue_free()
 	death_orb = null
 
-	if ember_amount <= 0:
-		return
+	if ember_amount > 0:
+		var orb: Area2D = SOUL_ORB_SCENE.instantiate()
+		orb.setup(ember_amount)
+		orb.global_position = death_pos
+		orb.collected.connect(func(): death_orb = null)
+		add_child(orb)
+		death_orb = orb
 
-	var orb: Area2D = SOUL_ORB_SCENE.instantiate()
-	orb.setup(ember_amount)
-	orb.global_position = death_pos
-	orb.collected.connect(func(): death_orb = null)
-	add_child(orb)
-	death_orb = orb
+	death_screen.show_death()
 
 
 func _on_death_zone_entered(body: Node) -> void:

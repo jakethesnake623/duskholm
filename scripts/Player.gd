@@ -2,6 +2,7 @@ extends CharacterBody2D
 
 signal health_changed(current: int, maximum: int)
 signal died(death_pos: Vector2, ember_amount: int)
+signal respawned
 
 # --- Physics ---
 const ACCELERATION  = 1400.0
@@ -221,11 +222,10 @@ func _die() -> void:
 	died.emit(last_safe_position, GameData.drop_all())
 	set_physics_process(false)
 	visual.modulate.a = 0.0
-	await get_tree().create_timer(0.8).timeout
-	_respawn()
+	# World listens to `died` and shows the death screen; respawn() is called from there.
 
 
-func _respawn() -> void:
+func respawn() -> void:
 	health          = GameData.get_max_health()
 	global_position = spawn_position
 	velocity        = Vector2.ZERO
@@ -234,6 +234,7 @@ func _respawn() -> void:
 	visual.modulate.a = 1.0
 	set_physics_process(true)
 	health_changed.emit(health, GameData.get_max_health())
+	respawned.emit()
 
 
 # ── Visuals ────────────────────────────────────────────────────────────────────
