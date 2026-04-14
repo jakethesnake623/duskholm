@@ -4,9 +4,31 @@ extends Node
 
 signal embers_changed(current: int)
 signal upgrade_purchased(key: String)
+signal throwables_changed
+signal rested
 
 var embers         := 0
 var spawn_position := Vector2(200.0, 620.0)
+
+# ── Throwable inventory ────────────────────────────────────────────────────────
+
+const THROWABLES: Dictionary = {
+	"flask": {
+		"label":  "Ember Flask",
+		"desc":   "Arcs on throw. Deals 2 damage on impact.",
+		"cost":    80,
+		"amount":  3,
+	},
+	"shard": {
+		"label":  "Ash Shard",
+		"desc":   "Fast straight shot. Deals 1 damage.",
+		"cost":    50,
+		"amount":  5,
+	},
+}
+
+var throwable_counts : Dictionary = {"flask": 0, "shard": 0}
+var active_throwable : String     = "flask"
 
 # ── Upgrade catalogue ──────────────────────────────────────────────────────────
 
@@ -65,10 +87,12 @@ func has_save() -> bool:
 
 func save() -> void:
 	var data := {
-		"embers":          embers,
-		"upgrade_levels":  upgrade_levels.duplicate(),
-		"spawn_x":         spawn_position.x,
-		"spawn_y":         spawn_position.y,
+		"embers":           embers,
+		"upgrade_levels":   upgrade_levels.duplicate(),
+		"spawn_x":          spawn_position.x,
+		"spawn_y":          spawn_position.y,
+		"throwable_counts": throwable_counts.duplicate(),
+		"active_throwable": active_throwable,
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -90,7 +114,12 @@ func load_save() -> bool:
 	var levels      = data.get("upgrade_levels", {})
 	for key in upgrade_levels:
 		upgrade_levels[key] = int(levels.get(key, 0))
+	var tcounts = data.get("throwable_counts", {})
+	for key in throwable_counts:
+		throwable_counts[key] = int(tcounts.get(key, 0))
+	active_throwable = data.get("active_throwable", "flask")
 	embers_changed.emit(embers)
+	throwables_changed.emit()
 	return true
 
 
@@ -106,7 +135,11 @@ func reset() -> void:
 	spawn_position = Vector2(200.0, 620.0)
 	for key in upgrade_levels:
 		upgrade_levels[key] = 0
+	for key in throwable_counts:
+		throwable_counts[key] = 0
+	active_throwable = "flask"
 	embers_changed.emit(0)
+	throwables_changed.emit()
 
 
 # ── Ember economy ──────────────────────────────────────────────────────────────
@@ -176,3 +209,41 @@ func has_double_jump() -> bool:
 
 func has_dash() -> bool:
 	return upgrade_levels.get("dash", 0) > 0
+
+
+# ── Throwable methods ──────────────────────────────────────────────────────────
+
+func get_throwable_count(type: String) -> int:
+	return throwable_counts.get(type, 0)
+
+
+func use_throwable() -> bool:
+	## Decrement the active throwable count. Returns false if empty.
+	var count : int = throwable_counts.get(active_throwable, 0)
+	if count <= 0:
+		return false
+	throwable_counts[active_throwable] -= 1
+	throwables_changed.emit()
+	return true
+
+
+func cycle_throwable() -> void:
+	var keys : Array = THROWABLES.keys()
+	var idx  : int   = keys.find(active_throwable)
+	active_throwable = keys[(idx + 1) % keys.size()]
+	throwables_changed.emit()
+
+
+func add_throwables(type: String, amount: int) -> void:
+	throwable_counts[type] = throwable_counts.get(type, 0) + amount
+	throwables_changed.emit()
+
+
+func buy_throwable(type: String) -> bool:
+	var data   := THROWABLES.get(type, {}) as Dictionary
+	var cost   : int = data.get("cost", 0)
+	var amount : int = data.get("amount", 0)
+	if not spend_embers(cost):
+		return false
+	add_throwables(type, amount)
+	return true

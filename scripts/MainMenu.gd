@@ -80,17 +80,20 @@ func _build_menu() -> Control:
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	var new_game_btn := _menu_button("New Game",  Vector2(490, 300.0))
-	var load_game_btn := _menu_button("Load Game", Vector2(490, 364.0))
-	var settings_btn  := _menu_button("Settings",  Vector2(490, 428.0))
+	var new_game_btn  := _menu_button("New Game",  Vector2(490, 284.0))
+	var load_game_btn := _menu_button("Load Game", Vector2(490, 348.0))
+	var settings_btn  := _menu_button("Settings",  Vector2(490, 412.0))
+	var quit_btn      := _menu_button("Quit",      Vector2(490, 476.0))
 
 	new_game_btn.pressed.connect(_on_new_game)
 	load_game_btn.pressed.connect(_on_load_game)
 	settings_btn.pressed.connect(_on_open_settings)
+	quit_btn.pressed.connect(func(): get_tree().quit())
 
 	root.add_child(new_game_btn)
 	root.add_child(load_game_btn)
 	root.add_child(settings_btn)
+	root.add_child(quit_btn)
 
 	_no_save_label = Label.new()
 	_no_save_label.text = "No save data found."

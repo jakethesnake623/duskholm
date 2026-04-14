@@ -24,3 +24,37 @@ text = "EMBERS"
 theme_override_font_sizes/font_size = 28
 theme_override_colors/font_color = Color(0.95, 0.78, 0.20, 1.0)
 text = "0"
+
+[node name="ThrowableBox" type="VBoxContainer" parent="."]
+offset_left = 1060.0
+offset_top = 618.0
+theme_override_constants/separation = 3
+
+[node name="ThrowableHeader" type="Label" parent="ThrowableBox"]
+theme_override_font_sizes/font_size = 10
+theme_override_colors/font_color = Color(0.55, 0.52, 0.46, 0.75)
+text = "[ Q ]  THROW"
+horizontal_alignment = 2
+
+[node name="Row" type="HBoxContainer" parent="ThrowableBox"]
+theme_override_constants/separation = 6
+
+[node name="Icon" type="ColorRect" parent="ThrowableBox/Row"]
+custom_minimum_size = Vector2(14.0, 14.0)
+color = Color(0.90, 0.42, 0.06, 1.0)
+
+[node name="NameLabel" type="Label" parent="ThrowableBox/Row"]
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.90, 0.88, 0.80, 1.0)
+text = "Ember Flask"
+
+[node name="CountLabel" type="Label" parent="ThrowableBox/Row"]
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.60, 0.58, 0.50, 1.0)
+text = "×0"
+
+[node name="CycleHint" type="Label" parent="ThrowableBox"]
+theme_override_font_sizes/font_size = 10
+theme_override_colors/font_color = Color(0.42, 0.40, 0.36, 0.70)
+text = "[ R ]  cycle"
+horizontal_alignment = 2

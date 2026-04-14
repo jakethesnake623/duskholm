@@ -5,9 +5,11 @@ const SOUL_ORB_SCENE = preload("res://scenes/SoulOrb.tscn")
 @onready var player        : CharacterBody2D = $Player
 @onready var hud           : CanvasLayer     = $HUD
 @onready var death_screen  : CanvasLayer     = $DeathScreen
+@onready var pause_menu    : CanvasLayer     = $PauseMenu
 @onready var death_zone    : Area2D          = $DeathZone
-@onready var h_transition  : Area2D          = $Transitions/HorizontalTransition
-@onready var v_transition  : Area2D          = $Transitions/VerticalTransition
+@onready var boss          : CharacterBody2D = $Boss
+@onready var boss_hpbar    : CanvasLayer     = $BossHealthBar
+@onready var boss_gate     : StaticBody2D    = $BossGate
 
 var camera    : Camera2D
 var death_orb : Node = null
@@ -19,22 +21,28 @@ func _ready() -> void:
 	# Place player at saved spawn (default on new game, well position on load)
 	player.global_position = GameData.spawn_position
 	player.spawn_position  = GameData.spawn_position
-	_set_initial_room()
+	_update_camera_room()
 
 	hud.setup(GameData.get_max_health())
 	hud.on_embers_changed(GameData.embers)
+	hud.on_throwables_changed()
 
 	player.health_changed.connect(hud.on_health_changed)
 	player.died.connect(_on_player_died)
-	player.respawned.connect(_set_initial_room)
+	player.respawned.connect(_update_camera_room)
 	death_screen.continue_pressed.connect(player.respawn)
+	death_screen.continue_pressed.connect(func(): pause_menu.can_pause = true)
+	death_screen.continue_pressed.connect(func(): GameData.rested.emit())
 
 	GameData.embers_changed.connect(hud.on_embers_changed)
 	GameData.upgrade_purchased.connect(_on_upgrade_purchased)
 
 	death_zone.body_entered.connect(_on_death_zone_entered)
-	h_transition.body_entered.connect(_on_horizontal_transition)
-	v_transition.body_entered.connect(_on_vertical_transition)
+
+	boss.health_changed.connect(boss_hpbar.on_health_changed)
+	boss.boss_died.connect(boss_hpbar.on_boss_died)
+	boss.boss_died.connect(_on_boss_died)
+	GameData.rested.connect(boss_hpbar.deactivate)
 
 
 # ── Upgrade purchased ──────────────────────────────────────────────────────────
@@ -48,35 +56,23 @@ func _on_upgrade_purchased(key: String) -> void:
 	hud.on_health_changed(player.health, GameData.get_max_health())
 
 
-# ── Initial room ──────────────────────────────────────────────────────────────
+# ── Camera room tracking ───────────────────────────────────────────────────────
 
-func _set_initial_room() -> void:
-	var pos := GameData.spawn_position
-	if pos.y >= 720:
+func _process(_delta: float) -> void:
+	_update_camera_room()
+
+
+func _update_camera_room() -> void:
+	var pos := player.global_position
+	if pos.y >= 1440 and pos.x >= 1280:
+		_set_room(1280, 2560, 1440, 2160)
+	elif pos.y >= 1440:
+		_set_room(0, 1280, 1440, 2160)
+	elif pos.y >= 720:
 		_set_room(0, 1280, 720, 1440)
 	elif pos.x >= 1280:
 		_set_room(1280, 2560, 0, 720)
 	else:
-		_set_room(0, 1280, 0, 720)
-
-
-# ── Room transitions ───────────────────────────────────────────────────────────
-
-func _on_horizontal_transition(body: Node) -> void:
-	if body != player:
-		return
-	if player.velocity.x > 0.0:
-		_set_room(1280, 2560, 0, 720)
-	elif player.velocity.x < 0.0:
-		_set_room(0, 1280, 0, 720)
-
-
-func _on_vertical_transition(body: Node) -> void:
-	if body != player:
-		return
-	if player.velocity.y > 0.0:
-		_set_room(0, 1280, 720, 1440)
-	elif player.velocity.y < 0.0:
 		_set_room(0, 1280, 0, 720)
 
 
@@ -102,9 +98,31 @@ func _on_player_died(death_pos: Vector2, ember_amount: int) -> void:
 		add_child(orb)
 		death_orb = orb
 
+	pause_menu.can_pause = false
 	death_screen.show_death()
 
 
 func _on_death_zone_entered(body: Node) -> void:
 	if body == player:
 		player.kill()
+
+
+# ── Boss defeated ──────────────────────────────────────────────────────────────
+
+func _on_boss_died() -> void:
+	_shake_camera(1.4, 7.0)
+	await get_tree().create_timer(0.9).timeout
+	boss_gate.crumble()
+
+
+func _shake_camera(duration: float, strength: float) -> void:
+	var steps : int = int(duration / 0.055)
+	var tween := create_tween()
+	for i in steps:
+		var decay  : float   = 1.0 - float(i) / float(steps)
+		var offset : Vector2 = Vector2(
+			randf_range(-strength, strength) * decay,
+			randf_range(-strength, strength) * decay
+		)
+		tween.tween_property(camera, "offset", offset, 0.055)
+	tween.tween_property(camera, "offset", Vector2.ZERO, 0.12)

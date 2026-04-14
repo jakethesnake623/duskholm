@@ -25,7 +25,8 @@ func _process(_delta: float) -> void:
 
 
 func _on_body_entered(body: Node) -> void:
-	if body.is_in_group("player"):
+	if body.is_in_group("player") and body.is_physics_processing():
+		AudioManager.play("orb_collect")
 		GameData.gain_embers(soul_amount)
 		collected.emit()
 		queue_free()

@@ -31,17 +31,35 @@ var patrol_dir   := 1.0
 var state_timer  := 0.0
 var attack_cd    := 0.0
 var attack_phase := 0        # 0 = windup  1 = lunge
-var base_scale_x := 1.0      # preserve variant x-scale when flipping
-var player_ref   : CharacterBody2D = null
+var base_scale_x  := 1.0      # preserve variant x-scale when flipping
+var player_ref    : CharacterBody2D = null
+
+# Procedural animation
+var _walk_time  := 0.0
+var _leg_l      : ColorRect = null
+var _leg_r      : ColorRect = null
+var _arm_l      : ColorRect = null
+var _arm_r      : ColorRect = null
+var _leg_l_base := 0.0
+var _leg_r_base := 0.0
+var _arm_l_base := 0.0
+var _arm_r_base := 0.0
+
+# Respawn
+var _spawn_position : Vector2
+var _base_scale_y   : float = 1.0
+var _death_tween    : Tween = null
 
 @onready var visual   : Node2D           = $Visual
 @onready var hurtbox  : Area2D           = $Hurtbox
 @onready var detect   : Area2D           = $DetectionZone
 @onready var atk_box  : Area2D           = $AttackHitbox
 @onready var atk_col  : CollisionShape2D = $AttackHitbox/CollisionShape2D
+@onready var body_col : CollisionShape2D = $CollisionShape2D
 
 
 func _ready() -> void:
+	_spawn_position = global_position
 	_apply_variant()
 	health = max_health
 	_build_visual()
@@ -53,6 +71,8 @@ func _ready() -> void:
 
 	atk_box.monitoring = false
 	atk_col.disabled   = true
+
+	GameData.rested.connect(_reset)
 
 
 # ── Variant setup ──────────────────────────────────────────────────────────────
@@ -101,7 +121,8 @@ func _build_visual() -> void:
 			bone_color = Color(0.88, 0.87, 0.76, 1.0)
 			scale_y    = 1.0
 
-	visual.scale = Vector2(base_scale_x, scale_y)
+	_base_scale_y = scale_y
+	visual.scale  = Vector2(base_scale_x, scale_y)
 
 	# Parts: [center_offset, size]  (centered around origin = physics center)
 	var parts := [
@@ -115,12 +136,32 @@ func _build_visual() -> void:
 		[Vector2( 7,   27), Vector2( 7, 22)],  # right leg
 	]
 
-	for part in parts:
+	for i in parts.size():
 		var rect := ColorRect.new()
-		rect.size     = part[1]
-		rect.position = part[0] - part[1] * 0.5
+		rect.size     = parts[i][1]
+		rect.position = parts[i][0] - parts[i][1] * 0.5
 		rect.color    = bone_color
 		visual.add_child(rect)
+		# Store limb references by index (3=left arm, 4=right arm, 6=left leg, 7=right leg)
+		match i:
+			3: _arm_l = rect; _arm_l_base = rect.position.y
+			4: _arm_r = rect; _arm_r_base = rect.position.y
+			6: _leg_l = rect; _leg_l_base = rect.position.y
+			7: _leg_r = rect; _leg_r_base = rect.position.y
+
+	# Glowing eye sockets inside the skull
+	var eye_color := Color(0.88, 0.50, 0.08, 0.90)
+	if variant == 2:
+		eye_color = Color(0.75, 0.28, 0.06, 0.90)  # ancient — deeper ember glow
+	elif variant == 1:
+		eye_color = Color(0.72, 0.82, 0.95, 0.90)  # tall/fresh — cold blue-white
+
+	for ex in [-4.5, 4.5]:
+		var eye := ColorRect.new()
+		eye.size     = Vector2(3.0, 3.0)
+		eye.position = Vector2(ex - 1.5, -32.5)
+		eye.color    = eye_color
+		visual.add_child(eye)
 
 
 # ── Physics loop ───────────────────────────────────────────────────────────────
@@ -140,6 +181,7 @@ func _physics_process(delta: float) -> void:
 		State.HURT:   _state_hurt(delta)
 
 	_update_facing()
+	_animate(delta)
 	move_and_slide()
 
 
@@ -203,6 +245,54 @@ func _state_hurt(delta: float) -> void:
 		state = State.CHASE if is_instance_valid(player_ref) else State.PATROL
 
 
+# ── Procedural animation ───────────────────────────────────────────────────────
+
+func _animate(delta: float) -> void:
+	if _leg_l == null:
+		return
+
+	# _update_facing() owns visual.scale.x — we only touch scale.y and rotation.
+	var t_scale_y := 1.0
+	var t_lean    := 0.0
+
+	match state:
+		State.PATROL, State.CHASE:
+			var speed_frac : float = abs(velocity.x) / move_speed
+			if speed_frac > 0.05:
+				_walk_time += delta * 7.5 * speed_frac
+				var swing : float = sin(_walk_time)
+				_leg_l.position.y = _leg_l_base + swing * 5.0
+				_leg_r.position.y = _leg_r_base - swing * 5.0
+				_arm_l.position.y = _arm_l_base - swing * 3.5
+				_arm_r.position.y = _arm_r_base + swing * 3.5
+			t_lean = clampf(velocity.x / (move_speed * 1.5), -0.12, 0.12)
+
+		State.ATTACK:
+			if attack_phase == 0:
+				t_scale_y = 0.88   # anticipation: crouch down
+				t_lean    = 0.18 * (1.0 if facing_right else -1.0)
+			else:
+				t_scale_y = 1.18   # lunge: stretch forward
+				t_lean    = 0.28 * (1.0 if facing_right else -1.0)
+			_leg_l.position.y = lerpf(_leg_l.position.y, _leg_l_base, 0.3)
+			_leg_r.position.y = lerpf(_leg_r.position.y, _leg_r_base, 0.3)
+			_arm_l.position.y = lerpf(_arm_l.position.y, _arm_l_base, 0.3)
+			_arm_r.position.y = lerpf(_arm_r.position.y, _arm_r_base, 0.3)
+
+		State.HURT:
+			t_scale_y = 1.08
+			t_lean    = -0.20 * (1.0 if facing_right else -1.0)
+
+		_:
+			_leg_l.position.y = lerpf(_leg_l.position.y, _leg_l_base, 0.2)
+			_leg_r.position.y = lerpf(_leg_r.position.y, _leg_r_base, 0.2)
+			_arm_l.position.y = lerpf(_arm_l.position.y, _arm_l_base, 0.2)
+			_arm_r.position.y = lerpf(_arm_r.position.y, _arm_r_base, 0.2)
+
+	visual.scale.y  = lerpf(visual.scale.y, t_scale_y, 10.0 * delta)
+	visual.rotation = lerpf(visual.rotation, t_lean,    9.0  * delta)
+
+
 # ── Facing ─────────────────────────────────────────────────────────────────────
 
 func _update_facing() -> void:
@@ -248,6 +338,7 @@ func _take_damage(amount: int) -> void:
 	if state == State.DEAD:
 		return
 
+	AudioManager.play("enemy_hit")
 	health -= amount
 
 	if health <= 0:
@@ -268,17 +359,67 @@ func _flash_red() -> void:
 
 
 func _die() -> void:
-	state = State.DEAD
+	AudioManager.play("enemy_die")
+	state               = State.DEAD
 	atk_box.monitoring  = false
 	hurtbox.monitoring  = false
 	detect.monitoring   = false
+	body_col.disabled   = true
+	collision_layer     = 0
+	collision_mask      = 0
 	velocity            = Vector2.ZERO
+	set_physics_process(false)
 
-	# Grant embers to the player before disappearing
 	GameData.gain_embers(embers_value)
 
-	# Crumble: fade and shrink into the ground
-	var tween := create_tween().set_parallel(true)
-	tween.tween_property(visual, "modulate:a", 0.0, 0.6)
-	tween.tween_property(visual, "scale:y",    0.0, 0.6)
-	tween.chain().tween_callback(queue_free)
+	# Crumble animation — node stays in the scene for respawning
+	if _death_tween:
+		_death_tween.kill()
+	_death_tween = create_tween().set_parallel(true)
+	_death_tween.tween_property(visual, "modulate:a", 0.0, 0.6)
+	_death_tween.tween_property(visual, "scale:y",    0.0, 0.6)
+
+
+func _reset() -> void:
+	if state != State.DEAD:
+		return
+
+	if _death_tween:
+		_death_tween.kill()
+		_death_tween = null
+
+	# Restore visual
+	visual.modulate   = Color.WHITE
+	visual.scale      = Vector2(base_scale_x, _base_scale_y)
+	visual.rotation   = 0.0
+
+	# Restore limb positions if animated
+	if _leg_l:
+		_leg_l.position.y = _leg_l_base
+		_leg_r.position.y = _leg_r_base
+		_arm_l.position.y = _arm_l_base
+		_arm_r.position.y = _arm_r_base
+
+	# Restore stats and state
+	health       = max_health
+	state        = State.PATROL
+	state_timer  = 0.0
+	attack_cd    = 0.0
+	attack_phase = 0
+	player_ref   = null
+	patrol_dir   = 1.0
+	velocity     = Vector2.ZERO
+	_walk_time   = 0.0
+
+	# Re-enable physics and hitboxes
+	collision_layer    = 1
+	collision_mask     = 1
+	body_col.disabled  = false
+	hurtbox.monitoring = true
+	detect.monitoring  = true
+	atk_box.monitoring = false
+	atk_col.disabled   = true
+	set_physics_process(true)
+
+	# Return to original spawn position
+	global_position = _spawn_position

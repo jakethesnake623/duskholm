@@ -1,5 +1,7 @@
 extends CharacterBody2D
 
+const THROWABLE_SCENE = preload("res://scenes/Throwable.tscn")
+
 signal health_changed(current: int, maximum: int)
 signal died(death_pos: Vector2, ember_amount: int)
 signal respawned
@@ -45,7 +47,14 @@ var is_dashing    := false
 var dash_timer    := 0.0
 var dash_cd_timer := 0.0
 
-@onready var visual        : ColorRect        = $Visual
+# --- Procedural animation ---
+const LAND_SQUASH_TIME := 0.18
+var _was_on_floor := true
+var _land_timer   := 0.0
+var _walk_phase   := 0.0
+var _slash_angle  := -1.20   # radians; drives nail arc from up-forward to down-forward
+
+@onready var visual        : Node2D           = $Visual
 @onready var nail_hitbox   : Area2D           = $NailHitbox
 @onready var nail_collision: CollisionShape2D = $NailHitbox/NailCollision
 @onready var nail_visual   : ColorRect        = $NailHitbox/NailVisual
@@ -73,7 +82,8 @@ func _physics_process(delta: float) -> void:
 	_handle_movement(delta)
 	_handle_jump()
 	_handle_attack()
-	_update_visuals()
+	_handle_throw()
+	_update_visuals(delta)
 	move_and_slide()
 
 
@@ -107,6 +117,7 @@ func _tick_timers(delta: float) -> void:
 		nail_hitbox.monitoring  = false
 		nail_collision.disabled = true
 		nail_visual.visible     = false
+		nail_visual.rotation    = 0.0
 
 
 # ── Movement ───────────────────────────────────────────────────────────────────
@@ -140,11 +151,13 @@ func _handle_jump() -> void:
 			velocity.y        = JUMP_VELOCITY
 			coyote_timer      = 0.0
 			jump_buffer_timer = 0.0
+			AudioManager.play("jump")
 		elif extra_jumps > 0:
 			# Air jump — double jump
 			velocity.y        = JUMP_VELOCITY * 0.90
 			extra_jumps      -= 1
 			jump_buffer_timer = 0.0
+			AudioManager.play("jump", -5.0)
 
 	# Variable height: release early → shorter arc
 	if Input.is_action_just_released("jump") and velocity.y < -150.0:
@@ -175,14 +188,47 @@ func _handle_attack() -> void:
 		_swing_nail()
 
 
+# ── Throw ──────────────────────────────────────────────────────────────────────
+
+func _handle_throw() -> void:
+	if Input.is_action_just_pressed("cycle_throwable"):
+		GameData.cycle_throwable()
+	if Input.is_action_just_pressed("throw") and not is_dashing:
+		_throw_item()
+
+
+func _throw_item() -> void:
+	if not GameData.use_throwable():
+		return
+	AudioManager.play("throw")
+	var proj := THROWABLE_SCENE.instantiate() as Area2D
+	get_parent().add_child(proj)
+	var dir    : float   = 1.0 if facing_right else -1.0
+	var offset : Vector2 = Vector2(dir * 10.0, -16.0)
+	proj.global_position = global_position + offset
+	proj.setup(GameData.active_throwable, dir)
+
+
 func _swing_nail() -> void:
 	is_attacking = true
 	attack_timer = ATTACK_COOLDOWN
+	AudioManager.play("swing")
+	_slash_angle = -1.20   # arc start: blade pointing up-forward
+
+	var range  : float = GameData.get_nail_range()
+	var facing : float = 1.0 if facing_right else -1.0
+
+	# Hitbox sits in front of the player and is taller than wide to cover the swept arc.
+	nail_hitbox.position.x = facing * (range * 0.5 + 6.0)
+	nail_hitbox.position.y = 0.0
+	var col_shape := nail_collision.shape as RectangleShape2D
+	col_shape.size.x = range * 0.60
+	col_shape.size.y = 56.0
+
 	nail_hitbox.monitoring  = true
 	nail_collision.disabled = false
-	nail_hitbox.position.x  = GameData.get_nail_range() if facing_right else -GameData.get_nail_range()
 	nail_visual.visible     = true
-	nail_visual.scale.x     = 1.0 if facing_right else -1.0
+	nail_visual.rotation    = _slash_angle * facing
 
 
 # ── Health ─────────────────────────────────────────────────────────────────────
@@ -193,6 +239,7 @@ func take_damage(amount: int, knockback_dir: Vector2 = Vector2.ZERO) -> void:
 
 	health = max(health - amount, 0)
 	i_frames_timer = I_FRAMES
+	AudioManager.play("player_hit")
 
 	if knockback_dir != Vector2.ZERO:
 		velocity.x = knockback_dir.normalized().x * KNOCKBACK_FORCE
@@ -219,6 +266,7 @@ func kill() -> void:
 
 
 func _die() -> void:
+	AudioManager.play("player_die")
 	died.emit(last_safe_position, GameData.drop_all())
 	set_physics_process(false)
 	visual.modulate.a = 0.0
@@ -239,9 +287,53 @@ func respawn() -> void:
 
 # ── Visuals ────────────────────────────────────────────────────────────────────
 
-func _update_visuals() -> void:
+func _update_visuals(delta: float) -> void:
+	var on_floor := is_on_floor()
+
+	# ── Landing detection ──────────────────────────────────────────────────────
+	if on_floor and not _was_on_floor:
+		_land_timer = LAND_SQUASH_TIME
+		AudioManager.play("land")
+	_was_on_floor  = on_floor
+	_land_timer    = max(_land_timer - delta, 0.0)
+
+	# ── Walk oscillation phase ─────────────────────────────────────────────────
+	if on_floor and abs(velocity.x) > 30.0:
+		_walk_phase += delta * 9.0
+
+	# ── Choose target scale & rotation ────────────────────────────────────────
+	var t_scale := Vector2.ONE
+	var t_rot   := 0.0
+
 	if is_dashing:
-		# Bright flash during dash
+		# Wide flat streak during dash
+		t_scale = Vector2(1.28, 0.70)
+	elif _land_timer > 0.0:
+		# Landing squash: wide + flat, springs back as timer expires
+		var p := _land_timer / LAND_SQUASH_TIME   # 1.0 (just landed) → 0.0 (recovered)
+		t_scale = Vector2(1.0 + 0.28 * p, 1.0 - 0.26 * p)
+	elif not on_floor:
+		# Air: stretch on ascent, slight squash on descent
+		var t := clampf(-velocity.y / 480.0, -0.8, 1.0)
+		t_scale = Vector2(1.0 - 0.12 * t, 1.0 + 0.16 * t)
+		# Lean forward in the direction of horizontal travel
+		t_rot = clampf(velocity.x / 520.0, -0.22, 0.22)
+	elif abs(velocity.x) > 30.0:
+		# Walking: gentle vertical bob + directional lean
+		var bob := sin(_walk_phase) * 0.022
+		t_scale = Vector2(1.0, 0.98 + bob)
+		t_rot   = clampf(velocity.x / 520.0, -0.10, 0.10)
+
+	# Smooth towards target (fast enough to feel responsive)
+	visual.scale    = visual.scale.lerp(t_scale, 14.0 * delta)
+	visual.rotation = lerpf(visual.rotation, t_rot, 10.0 * delta)
+
+	# Flip to face direction (applied as scale.x sign, not rotation)
+	var face := 1.0 if facing_right else -1.0
+	visual.scale.x = abs(visual.scale.x) * face
+
+	# ── Modulate (colour effects) ──────────────────────────────────────────────
+	if is_dashing:
 		visual.modulate = Color(1.4, 1.4, 2.0, 0.85)
 	elif i_frames_timer > 0.0:
 		visual.modulate.a = 0.25 + 0.75 * abs(sin(Time.get_ticks_msec() * 0.015))
@@ -250,3 +342,9 @@ func _update_visuals() -> void:
 		visual.modulate.b = 1.0
 	else:
 		visual.modulate = Color.WHITE
+
+	# ── Nail slash arc ─────────────────────────────────────────────────────────
+	if is_attacking:
+		var facing : float = 1.0 if facing_right else -1.0
+		_slash_angle         = move_toward(_slash_angle, 1.20, 16.0 * delta)
+		nail_visual.rotation = _slash_angle * facing
