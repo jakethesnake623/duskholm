@@ -17,6 +17,12 @@ var _dialogue_active   := false
 var _dialogue_sequence : Array       = []
 var _dialogue_index    : int         = 0
 
+# Typewriter state
+const CHARS_PER_SEC    : float = 44.0
+var _typing            := false
+var _type_elapsed      := 0.0
+var _type_full_text    := ""
+
 # Subtitle nodes (built in _ready)
 var _subtitle_layer : CanvasLayer = null
 var _subtitle_text  : Label       = null
@@ -34,10 +40,14 @@ func _ready() -> void:
 	shop_ui.closed.connect(_on_shop_closed)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_tick_typing(delta)
+
 	if not Input.is_action_just_pressed("interact"):
 		return
-	if _dialogue_active:
+	if _typing:
+		_skip_typing()
+	elif _dialogue_active:
 		_advance_dialogue()
 	elif player_nearby:
 		_start_dialogue()
@@ -159,10 +169,35 @@ func _cancel_dialogue() -> void:
 
 
 func _show_line() -> void:
-	_subtitle_text.text = _dialogue_sequence[_dialogue_index]
+	var line := _dialogue_sequence[_dialogue_index] as String
 	var last := _dialogue_index >= _dialogue_sequence.size() - 1
 	_subtitle_hint.text     = "[ E ]  Enter Shop" if last else "[ E ]  Continue"
 	_subtitle_layer.visible = true
+	_begin_typing(line)
+
+
+# ── Typewriter ──────────────────────────────────────────────────────────────────
+
+func _begin_typing(text: String) -> void:
+	_type_full_text  = text
+	_type_elapsed    = 0.0
+	_typing          = true
+	_subtitle_text.text = ""
+
+
+func _tick_typing(delta: float) -> void:
+	if not _typing:
+		return
+	_type_elapsed += delta
+	var revealed : int = mini(int(_type_elapsed * CHARS_PER_SEC), _type_full_text.length())
+	_subtitle_text.text = _type_full_text.left(revealed)
+	if revealed >= _type_full_text.length():
+		_typing = false
+
+
+func _skip_typing() -> void:
+	_typing             = false
+	_subtitle_text.text = _type_full_text
 
 
 # ── Detection ──────────────────────────────────────────────────────────────────

@@ -16,6 +16,17 @@ func _ready() -> void:
 # to fake a gradient depth effect without texture assets.
 
 func _build_backgrounds() -> void:
+	# Room 0 — The Cradle: primordial dark, before embers, before memory
+	_bg(Vector2(-1280,   0), Vector2(1280, 720), Color(0.03, 0.02, 0.05, 1.00))
+	_bg(Vector2(-1280,   0), Vector2(1280, 220), Color(0.01, 0.01, 0.03, 0.65))
+	_bg(Vector2(-1280, 500), Vector2(1280, 220), Color(0.05, 0.03, 0.09, 0.30))
+	# Pillar silhouettes — tall columns of carved stone, older than the rest
+	_bg(Vector2(-1196,   0), Vector2(36, 650),  Color(0.01, 0.01, 0.03, 0.95))
+	_bg(Vector2(-946,    0), Vector2(30, 590),  Color(0.01, 0.01, 0.03, 0.88))
+	_bg(Vector2(-674,    0), Vector2(32, 620),  Color(0.01, 0.01, 0.03, 0.92))
+	_bg(Vector2(-390,    0), Vector2(28, 560),  Color(0.01, 0.01, 0.03, 0.85))
+	_bg(Vector2(-154,    0), Vector2(26, 530),  Color(0.01, 0.01, 0.03, 0.80))
+
 	# Room 1 — The Entrance: warm charcoal, faint ember glow from below
 	_bg(Vector2(0,    0),   Vector2(1280, 720), Color(0.09, 0.08, 0.11, 1.00))
 	_bg(Vector2(0,    0),   Vector2(1280, 260), Color(0.05, 0.04, 0.08, 0.55))
@@ -25,6 +36,22 @@ func _build_backgrounds() -> void:
 	_bg(Vector2(1280, 0),   Vector2(1280, 720), Color(0.08, 0.09, 0.12, 1.00))
 	_bg(Vector2(1280, 0),   Vector2(1280, 320), Color(0.04, 0.05, 0.10, 0.55))
 	_bg(Vector2(1280, 560), Vector2(1280, 160), Color(0.06, 0.07, 0.10, 0.35))
+
+	# Room 6 — The Hollow: sunken left of Room 3, deeper dark, phosphorescent cold
+	_bg(Vector2(-1280,  720), Vector2(1280, 720), Color(0.05, 0.04, 0.08, 1.00))
+	_bg(Vector2(-1280,  720), Vector2(1280, 240), Color(0.02, 0.02, 0.06, 0.60))
+	_bg(Vector2(-1280, 1180), Vector2(1280, 280), Color(0.03, 0.05, 0.07, 0.45))
+	# Stalactite silhouettes hanging from ceiling
+	_bg(Vector2(-1200,  720), Vector2(20, 180),   Color(0.02, 0.01, 0.04, 0.95))
+	_bg(Vector2(-940,   720), Vector2(16, 130),   Color(0.02, 0.01, 0.04, 0.90))
+	_bg(Vector2(-680,   720), Vector2(22, 220),   Color(0.02, 0.01, 0.04, 0.95))
+	_bg(Vector2(-420,   720), Vector2(18, 160),   Color(0.02, 0.01, 0.04, 0.88))
+	_bg(Vector2(-160,   720), Vector2(14, 100),   Color(0.02, 0.01, 0.04, 0.85))
+
+	# Room 7 — The Ossuary: bone-grey dust, ancient death, amber undertones
+	_bg(Vector2(1280,  720), Vector2(1280, 720), Color(0.09, 0.07, 0.05, 1.00))
+	_bg(Vector2(1280,  720), Vector2(1280, 240), Color(0.06, 0.05, 0.03, 0.55))
+	_bg(Vector2(1280, 1100), Vector2(1280, 340), Color(0.05, 0.04, 0.02, 0.50))
 
 	# Room 3 — The Vault: deep void purple, ancient and cold
 	_bg(Vector2(0,    720),  Vector2(1280, 720), Color(0.07, 0.05, 0.11, 1.00))
@@ -90,11 +117,20 @@ func _vignette(parent: Node, pos: Vector2, size: Vector2, alpha: float) -> void:
 # CPUParticles2D pre-warmed so particles are already floating when the room loads.
 
 func _build_particles() -> void:
+	# Room 0 — cold stone dust, barely drifting, ancient and still
+	_embers(Vector2(-640, 380), Vector2(480, 300), 7, Color(0.50, 0.52, 0.65, 0.18))
+
 	# Room 1 — sparse warm embers drifting up from the pit
 	_embers(Vector2(640,  420), Vector2(560, 280), 14, Color(0.88, 0.38, 0.06, 0.65))
 
 	# Room 2 — cool ashen motes drifting in the height
 	_embers(Vector2(1920, 380), Vector2(540, 300), 11, Color(0.70, 0.74, 0.80, 0.45))
+
+	# Room 6 — cold blue-green cave spores, barely visible
+	_embers(Vector2(-640, 1080), Vector2(480, 300), 9, Color(0.30, 0.58, 0.55, 0.22))
+
+	# Room 7 — bone-dust motes, warm amber drift
+	_embers(Vector2(1920, 1080), Vector2(520, 300), 12, Color(0.72, 0.60, 0.35, 0.32))
 
 	# Room 3 — denser deep-purple embers near the Hearth
 	_embers(Vector2(640, 1080), Vector2(540, 300), 20, Color(0.60, 0.18, 0.72, 0.60))

@@ -32,6 +32,7 @@ monitorable = true
 shape = SubResource("3")
 
 [node name="DetectionZone" type="Area2D" parent="."]
+collision_mask = 2
 monitoring = true
 monitorable = false
 
@@ -39,6 +40,7 @@ monitorable = false
 shape = SubResource("4")
 
 [node name="AttackHitbox" type="Area2D" parent="."]
+collision_mask = 2
 monitoring = false
 monitorable = false
 

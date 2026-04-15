@@ -5,7 +5,8 @@ extends Node
 ##
 ## Sounds with pool_size > 1 are polyphonic (e.g. enemy_hit during explosions).
 
-const SAMPLE_RATE : int = 22050
+const SAMPLE_RATE   : int    = 22050
+const SETTINGS_PATH : String = "user://settings.cfg"
 
 
 var _pools    : Dictionary = {}   # name → Array of AudioStreamPlayer
@@ -14,6 +15,13 @@ var _pool_idx : Dictionary = {}   # name → round-robin index
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+
+	# Create SFX bus routed through Master so each can be controlled separately
+	if AudioServer.get_bus_index("SFX") == -1:
+		AudioServer.add_bus()
+		var idx : int = AudioServer.get_bus_count() - 1
+		AudioServer.set_bus_name(idx, "SFX")
+		AudioServer.set_bus_send(idx, "Master")
 
 	_add("jump",        _gen_jump(),        1)
 	_add("land",        _gen_land(),        1)
@@ -30,6 +38,7 @@ func _ready() -> void:
 	_add("rest",        _gen_rest(),        1)
 
 	GameData.rested.connect(func() -> void: play("rest"))
+	_load_settings()
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────
@@ -52,12 +61,40 @@ func _add(name: String, stream: AudioStreamWAV, pool_size: int) -> void:
 	for _i in pool_size:
 		var p := AudioStreamPlayer.new()
 		p.stream     = stream
-		p.bus        = "Master"
+		p.bus        = "SFX"
 		p.process_mode = Node.PROCESS_MODE_ALWAYS
 		add_child(p)
 		pool.append(p)
 	_pools[name]    = pool
 	_pool_idx[name] = 0
+
+
+# ── Volume / settings ──────────────────────────────────────────────────────────
+
+func set_master_volume(linear: float) -> void:
+	AudioServer.set_bus_volume_db(AudioServer.get_bus_index("Master"), linear_to_db(maxf(linear, 0.001)))
+
+func set_sfx_volume(linear: float) -> void:
+	AudioServer.set_bus_volume_db(AudioServer.get_bus_index("SFX"), linear_to_db(maxf(linear, 0.001)))
+
+func get_master_volume() -> float:
+	return db_to_linear(AudioServer.get_bus_volume_db(AudioServer.get_bus_index("Master")))
+
+func get_sfx_volume() -> float:
+	return db_to_linear(AudioServer.get_bus_volume_db(AudioServer.get_bus_index("SFX")))
+
+func save_settings(master: float, sfx: float) -> void:
+	var cfg := ConfigFile.new()
+	cfg.set_value("audio", "master", master)
+	cfg.set_value("audio", "sfx", sfx)
+	cfg.save(SETTINGS_PATH)
+
+func _load_settings() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(SETTINGS_PATH) != OK:
+		return
+	set_master_volume(cfg.get_value("audio", "master", 1.0))
+	set_sfx_volume(cfg.get_value("audio", "sfx", 1.0))
 
 
 # ── WAV helpers ────────────────────────────────────────────────────────────────

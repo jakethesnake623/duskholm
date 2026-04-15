@@ -1,4 +1,4 @@
-[gd_scene load_steps=35 format=3]
+[gd_scene load_steps=38 format=3]
 
 [ext_resource type="Script" path="res://scripts/World.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2"]
@@ -13,6 +13,8 @@
 [ext_resource type="PackedScene" path="res://scenes/Boss.tscn" id="11"]
 [ext_resource type="PackedScene" path="res://scenes/BossHealthBar.tscn" id="12"]
 [ext_resource type="PackedScene" path="res://scenes/BossGate.tscn" id="13"]
+[ext_resource type="PackedScene" path="res://scenes/Chest.tscn" id="14"]
+[ext_resource type="PackedScene" path="res://scenes/MiniMap.tscn" id="15"]
 
 ; ── Shared collision shapes ────────────────────────────────────────────────────
 [sub_resource type="RectangleShape2D" id="10"]
@@ -57,8 +59,12 @@ size = Vector2(100.0, 24.0)
 size = Vector2(530.0, 40.0)
 
 ; ── Boundary wall shapes ───────────────────────────────────────────────────────
+; WallLeft now only covers Rooms 4+5 left side (y:1440–2160) — Room 6 opens the passage
 [sub_resource type="RectangleShape2D" id="23"]
-size = Vector2(20.0, 2200.0)
+size = Vector2(20.0, 720.0)
+
+[sub_resource type="RectangleShape2D" id="27"]
+size = Vector2(1280.0, 20.0)
 
 [sub_resource type="RectangleShape2D" id="24"]
 size = Vector2(20.0, 720.0)
@@ -74,6 +80,173 @@ size = Vector2(20.0, 360.0)
 script = ExtResource("1")
 
 [node name="Atmosphere" parent="." instance=ExtResource("10")]
+
+[node name="MiniMap" parent="." instance=ExtResource("15")]
+
+; ── Room 0: The Cradle  (x: -1280–0, y: 0–720) ───────────────────────────────
+; Initial spawn room. No enemies. Ominous, still. The well waits here.
+[node name="Room0" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Room0"]
+position = Vector2(-640.0, 680.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room0/Floor"]
+shape = SubResource("12")
+
+[node name="Visual" type="ColorRect" parent="Room0/Floor"]
+offset_left   = -640.0
+offset_top    =  -20.0
+offset_right  =  640.0
+offset_bottom =   20.0
+color = Color(0.08, 0.06, 0.10, 1)
+
+; Scattered platforms give vertical interest without blocking the path to the well
+[node name="PlatformLeft" type="StaticBody2D" parent="Room0"]
+position = Vector2(-1060.0, 478.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room0/PlatformLeft"]
+shape = SubResource("14")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room0/PlatformLeft"]
+offset_left   = -80.0
+offset_top    = -12.0
+offset_right  =  80.0
+offset_bottom =  12.0
+color = Color(0.08, 0.06, 0.10, 1)
+
+[node name="PlatformCenter" type="StaticBody2D" parent="Room0"]
+position = Vector2(-600.0, 382.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room0/PlatformCenter"]
+shape = SubResource("16")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room0/PlatformCenter"]
+offset_left   = -100.0
+offset_top    =  -12.0
+offset_right  =  100.0
+offset_bottom =   12.0
+color = Color(0.08, 0.06, 0.10, 1)
+
+[node name="PlatformRight" type="StaticBody2D" parent="Room0"]
+position = Vector2(-210.0, 536.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room0/PlatformRight"]
+shape = SubResource("17")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room0/PlatformRight"]
+offset_left   = -70.0
+offset_top    = -12.0
+offset_right  =  70.0
+offset_bottom =  12.0
+color = Color(0.08, 0.06, 0.10, 1)
+
+; ── Room 6: The Hollow  (x: -1280–0, y: 720–1440) ────────────────────────────
+; Accessible by walking left from Room 3 — no wall separates them at x=0.
+; Darker, cave-like. Platforms reward careful exploration with chests.
+[node name="Room6" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Room6"]
+position = Vector2(-640.0, 1400.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room6/Floor"]
+shape = SubResource("12")
+
+[node name="Visual" type="ColorRect" parent="Room6/Floor"]
+offset_left   = -640.0
+offset_top    =  -20.0
+offset_right  =  640.0
+offset_bottom =   20.0
+color = Color(0.07, 0.05, 0.09, 1)
+
+[node name="PlatformA" type="StaticBody2D" parent="Room6"]
+position = Vector2(-1100.0, 900.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room6/PlatformA"]
+shape = SubResource("14")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room6/PlatformA"]
+offset_left   = -80.0
+offset_top    = -12.0
+offset_right  =  80.0
+offset_bottom =  12.0
+color = Color(0.07, 0.05, 0.09, 1)
+
+[node name="PlatformB" type="StaticBody2D" parent="Room6"]
+position = Vector2(-750.0, 1070.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room6/PlatformB"]
+shape = SubResource("16")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room6/PlatformB"]
+offset_left   = -100.0
+offset_top    =  -12.0
+offset_right  =  100.0
+offset_bottom =   12.0
+color = Color(0.07, 0.05, 0.09, 1)
+
+[node name="PlatformC" type="StaticBody2D" parent="Room6"]
+position = Vector2(-450.0, 960.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room6/PlatformC"]
+shape = SubResource("17")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room6/PlatformC"]
+offset_left   = -70.0
+offset_top    = -12.0
+offset_right  =  70.0
+offset_bottom =  12.0
+color = Color(0.07, 0.05, 0.09, 1)
+
+[node name="PlatformD" type="StaticBody2D" parent="Room6"]
+position = Vector2(-190.0, 1100.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room6/PlatformD"]
+shape = SubResource("14")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room6/PlatformD"]
+offset_left   = -80.0
+offset_top    = -12.0
+offset_right  =  80.0
+offset_bottom =  12.0
+color = Color(0.07, 0.05, 0.09, 1)
+
+[node name="SkeletonP" parent="Room6" instance=ExtResource("4")]
+position = Vector2(-1050.0, 1370.0)
+
+[node name="SkeletonQ" parent="Room6" instance=ExtResource("4")]
+position = Vector2(-780.0, 1370.0)
+variant = 2
+
+[node name="SkeletonR" parent="Room6" instance=ExtResource("4")]
+position = Vector2(-430.0, 1370.0)
+
+[node name="SkeletonS" parent="Room6" instance=ExtResource("4")]
+position = Vector2(-190.0, 1370.0)
+variant = 1
+
+; Room 0 chest — on PlatformCenter, encourages exploring before the well
+[node name="ChestRoom0" parent="Room0" instance=ExtResource("14")]
+position = Vector2(-600.0, 357.0)
+reward_type = "embers"
+reward_amount = 60
+
+; Chests — PlatformA (high, hardest to reach) gives the better reward
+[node name="ChestRoom6A" parent="Room6" instance=ExtResource("14")]
+position = Vector2(-1100.0, 875.0)
+reward_type = "embers"
+reward_amount = 250
+
+[node name="ChestRoom6B" parent="Room6" instance=ExtResource("14")]
+position = Vector2(-750.0, 1045.0)
+reward_type = "flask"
+reward_amount = 2
 
 ; ── Room 1: The Entrance  (x: 0–1280, y: 0–720) ──────────────────────────────
 [node name="Room1" type="Node2D" parent="."]
@@ -173,6 +346,12 @@ offset_top = -12.0
 offset_right = 90.0
 offset_bottom = 12.0
 color = Color(0.18, 0.18, 0.22, 1)
+
+; Room 1 chest — on Platform3 (highest in the room, requires some effort)
+[node name="ChestRoom1" parent="Room1" instance=ExtResource("14")]
+position = Vector2(510.0, 365.0)
+reward_type = "health"
+reward_amount = 1
 
 [node name="SkeletonA" parent="Room1" instance=ExtResource("4")]
 position = Vector2(240.0, 600.0)
@@ -297,6 +476,12 @@ offset_right = 70.0
 offset_bottom = 12.0
 color = Color(0.18, 0.18, 0.22, 1)
 
+; Room 2 chest — on Platform4 (near the spire peak, best reward in the upper world)
+[node name="ChestRoom2" parent="Room2" instance=ExtResource("14")]
+position = Vector2(1900.0, 245.0)
+reward_type = "embers"
+reward_amount = 200
+
 [node name="SkeletonB" parent="Room2" instance=ExtResource("4")]
 position = Vector2(1480.0, 600.0)
 variant = 1
@@ -314,6 +499,124 @@ position = Vector2(2220.0, 600.0)
 
 [node name="SkeletonJ" parent="Room2" instance=ExtResource("4")]
 position = Vector2(2380.0, 600.0)
+
+; ── Room 7: The Ossuary  (x: 1280–2560, y: 720–1440) ─────────────────────────
+; Accessed by dropping off any edge of Room 2 — open top, no ceiling.
+; Bone-grey catacombs. Chest on the high central platform.
+[node name="Room7" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Room7"]
+position = Vector2(1920.0, 1400.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room7/Floor"]
+shape = SubResource("12")
+
+[node name="Visual" type="ColorRect" parent="Room7/Floor"]
+offset_left   = -640.0
+offset_top    =  -20.0
+offset_right  =  640.0
+offset_bottom =   20.0
+color = Color(0.11, 0.09, 0.06, 1)
+
+[node name="PlatformA" type="StaticBody2D" parent="Room7"]
+position = Vector2(1420.0, 1210.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room7/PlatformA"]
+shape = SubResource("14")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room7/PlatformA"]
+offset_left   = -80.0
+offset_top    = -12.0
+offset_right  =  80.0
+offset_bottom =  12.0
+color = Color(0.11, 0.09, 0.06, 1)
+
+[node name="PlatformB" type="StaticBody2D" parent="Room7"]
+position = Vector2(1660.0, 1060.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room7/PlatformB"]
+shape = SubResource("17")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room7/PlatformB"]
+offset_left   = -70.0
+offset_top    = -12.0
+offset_right  =  70.0
+offset_bottom =  12.0
+color = Color(0.11, 0.09, 0.06, 1)
+
+[node name="PlatformC" type="StaticBody2D" parent="Room7"]
+position = Vector2(1920.0, 900.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room7/PlatformC"]
+shape = SubResource("16")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room7/PlatformC"]
+offset_left   = -100.0
+offset_top    =  -12.0
+offset_right  =  100.0
+offset_bottom =   12.0
+color = Color(0.11, 0.09, 0.06, 1)
+
+[node name="PlatformD" type="StaticBody2D" parent="Room7"]
+position = Vector2(2160.0, 1060.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room7/PlatformD"]
+shape = SubResource("17")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room7/PlatformD"]
+offset_left   = -70.0
+offset_top    = -12.0
+offset_right  =  70.0
+offset_bottom =  12.0
+color = Color(0.11, 0.09, 0.06, 1)
+
+[node name="PlatformE" type="StaticBody2D" parent="Room7"]
+position = Vector2(2400.0, 1210.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room7/PlatformE"]
+shape = SubResource("13")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room7/PlatformE"]
+offset_left   = -90.0
+offset_top    = -12.0
+offset_right  =  90.0
+offset_bottom =  12.0
+color = Color(0.11, 0.09, 0.06, 1)
+
+[node name="SkeletonT" parent="Room7" instance=ExtResource("4")]
+position = Vector2(1480.0, 1370.0)
+variant = 1
+
+[node name="SkeletonU" parent="Room7" instance=ExtResource("4")]
+position = Vector2(1720.0, 1370.0)
+
+[node name="SkeletonV" parent="Room7" instance=ExtResource("4")]
+position = Vector2(1960.0, 1370.0)
+variant = 2
+
+[node name="SkeletonW" parent="Room7" instance=ExtResource("4")]
+position = Vector2(2200.0, 1370.0)
+variant = 1
+
+[node name="SkeletonX" parent="Room7" instance=ExtResource("4")]
+position = Vector2(2440.0, 1370.0)
+
+; PlatformC is the highest — requires double-jump or good platforming to reach
+[node name="ChestRoom7A" parent="Room7" instance=ExtResource("14")]
+position = Vector2(1920.0, 875.0)
+reward_type = "shard"
+reward_amount = 3
+
+; PlatformE — accessible early, modest reward
+[node name="ChestRoom7B" parent="Room7" instance=ExtResource("14")]
+position = Vector2(2400.0, 1185.0)
+reward_type = "health"
+reward_amount = 1
 
 ; ── Room 3: The Vault  (x: 0–1280, y: 720–1440) ──────────────────────────────
 [node name="Room3" type="Node2D" parent="."]
@@ -456,6 +759,12 @@ offset_right = 50.0
 offset_bottom = 12.0
 color = Color(0.14, 0.11, 0.18, 1)
 
+; Room 3 chest — on Platform3 (center void platform, mid-height challenge)
+[node name="ChestRoom3" parent="Room3" instance=ExtResource("14")]
+position = Vector2(660.0, 1055.0)
+reward_type = "flask"
+reward_amount = 2
+
 [node name="SkeletonD" parent="Room3" instance=ExtResource("4")]
 position = Vector2(900.0, 1320.0)
 variant = 2
@@ -498,14 +807,14 @@ shape = SubResource("20")
 
 ; ── Player ─────────────────────────────────────────────────────────────────────
 [node name="Player" parent="." instance=ExtResource("2")]
-position = Vector2(200.0, 620.0)
+position = Vector2(-980.0, 620.0)
 
 [node name="Camera2D" type="Camera2D" parent="Player"]
 zoom = Vector2(2.0, 2.0)
 position_smoothing_enabled = true
 position_smoothing_speed = 8.0
-limit_left = 0
-limit_right = 1280
+limit_left = -1280
+limit_right = 0
 limit_top = 0
 limit_bottom = 720
 
@@ -515,15 +824,24 @@ position = Vector2(100.0, 660.0)
 dialogue_lines = PackedStringArray("...fire does not die... it waits...", "I remember warmth. What followed was not peace. It was absence.", "The Hearth called you here. That is not an accident.", "We burned. But we were alive. Can you say the same of this cold?", "Aldren feared what the fire could become. I think he feared the wrong thing.", "Something still breathes beneath the stone. You can feel it.")
 
 [node name="MerchantRoom3" parent="." instance=ExtResource("5")]
-position = Vector2(640.0, 1380.0)
+position = Vector2(950.0, 1380.0)
 dialogue_lines = PackedStringArray("We burned too bright. All things that burn too bright become cinders.", "I have watched them wander for centuries. They are tired. Let them rest.", "The darkness is patient. Perhaps that is a kind of wisdom.", "Aldren tried to protect us with flame. You see what his protection built.", "Peace is not always warmth. Sometimes peace is simply... stillness.", "End the cycle. It is the only mercy left in this place.")
 
 ; ── Soul Wells ─────────────────────────────────────────────────────────────────
+; The Cradle well — first thing the player encounters. Inner-voice lines play on
+; first interaction, hinting at the well's nature and the player's lost memory.
+[node name="SoulWellRoom0" parent="." instance=ExtResource("6")]
+position = Vector2(-640.0, 640.0)
+inner_voice_lines = PackedStringArray("...The dark is familiar. That should worry me more than it does.", "I don't remember arriving here. I don't remember anything before the cold of this floor.", "Something in this basin stirs when I draw near. Old. Patient. As though it has been waiting.", "If I give myself to it... will it hold me when I fall?")
+room_id = "room0"
+
 [node name="SoulWellRoom1" parent="." instance=ExtResource("6")]
 position = Vector2(800.0, 660.0)
+room_id = "room1"
 
 [node name="SoulWellRoom3" parent="." instance=ExtResource("6")]
 position = Vector2(320.0, 1380.0)
+room_id = "room3"
 
 ; ── Room 4: The Sunken Hall  (x: 0–1280, y: 1440–2160) ───────────────────────
 [node name="Room4" type="Node2D" parent="."]
@@ -585,15 +903,139 @@ offset_right = 100.0
 offset_bottom = 12.0
 color = Color(0.18, 0.10, 0.10, 1)
 
+; ── Boss Scaffold  (hidden; revealed after the Warden dies) ───────────────────
+; Six one-way platforms fill the ~200px gaps between the existing ClimbPlatforms
+; so the player can reliably ascend from the arena floor back to Room 3.
+; Platforms are ordered bottom (y=2050) → top (y=1460) so the reveal tween
+; sweeps upward naturally as the player would climb.
+[node name="BossScaffold" type="Node2D" parent="."]
+
+[node name="Scaffold1" type="StaticBody2D" parent="BossScaffold"]
+position = Vector2(640.0, 2050.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BossScaffold/Scaffold1"]
+shape = SubResource("16")
+one_way_collision = true
+disabled = true
+
+[node name="Visual" type="ColorRect" parent="BossScaffold/Scaffold1"]
+offset_left   = -100.0
+offset_top    =  -12.0
+offset_right  =  100.0
+offset_bottom =   12.0
+color    = Color(0.22, 0.12, 0.12, 1)
+modulate = Color(1, 1, 1, 0)
+
+[node name="Scaffold2" type="StaticBody2D" parent="BossScaffold"]
+position = Vector2(640.0, 1960.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BossScaffold/Scaffold2"]
+shape = SubResource("16")
+one_way_collision = true
+disabled = true
+
+[node name="Visual" type="ColorRect" parent="BossScaffold/Scaffold2"]
+offset_left   = -100.0
+offset_top    =  -12.0
+offset_right  =  100.0
+offset_bottom =   12.0
+color    = Color(0.22, 0.12, 0.12, 1)
+modulate = Color(1, 1, 1, 0)
+
+[node name="Scaffold3" type="StaticBody2D" parent="BossScaffold"]
+position = Vector2(640.0, 1855.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BossScaffold/Scaffold3"]
+shape = SubResource("16")
+one_way_collision = true
+disabled = true
+
+[node name="Visual" type="ColorRect" parent="BossScaffold/Scaffold3"]
+offset_left   = -100.0
+offset_top    =  -12.0
+offset_right  =  100.0
+offset_bottom =   12.0
+color    = Color(0.22, 0.12, 0.12, 1)
+modulate = Color(1, 1, 1, 0)
+
+[node name="Scaffold4" type="StaticBody2D" parent="BossScaffold"]
+position = Vector2(640.0, 1765.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BossScaffold/Scaffold4"]
+shape = SubResource("16")
+one_way_collision = true
+disabled = true
+
+[node name="Visual" type="ColorRect" parent="BossScaffold/Scaffold4"]
+offset_left   = -100.0
+offset_top    =  -12.0
+offset_right  =  100.0
+offset_bottom =   12.0
+color    = Color(0.22, 0.12, 0.12, 1)
+modulate = Color(1, 1, 1, 0)
+
+[node name="Scaffold5" type="StaticBody2D" parent="BossScaffold"]
+position = Vector2(640.0, 1640.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BossScaffold/Scaffold5"]
+shape = SubResource("16")
+one_way_collision = true
+disabled = true
+
+[node name="Visual" type="ColorRect" parent="BossScaffold/Scaffold5"]
+offset_left   = -100.0
+offset_top    =  -12.0
+offset_right  =  100.0
+offset_bottom =   12.0
+color    = Color(0.22, 0.12, 0.12, 1)
+modulate = Color(1, 1, 1, 0)
+
+[node name="Scaffold6" type="StaticBody2D" parent="BossScaffold"]
+position = Vector2(640.0, 1460.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BossScaffold/Scaffold6"]
+shape = SubResource("16")
+one_way_collision = true
+disabled = true
+
+[node name="Visual" type="ColorRect" parent="BossScaffold/Scaffold6"]
+offset_left   = -100.0
+offset_top    =  -12.0
+offset_right  =  100.0
+offset_bottom =   12.0
+color    = Color(0.22, 0.12, 0.12, 1)
+modulate = Color(1, 1, 1, 0)
+
 ; ── Boundary walls ─────────────────────────────────────────────────────────────
 ; Invisible StaticBody2D walls at screen edges so the player can't walk off.
 ; Left wall covers all four rooms. Right walls split at the Room 1↔2 passage
 ; (x=1280, y:0-720 is open) and the Room 3+4 right edge.
 [node name="Walls" type="Node2D" parent="."]
 
-; Left edge of world — x: -20 to 0, spans all rooms top to bottom
+; Left edge of Room 0 — seals the world's western boundary
+[node name="WallRoom0Left" type="StaticBody2D" parent="Walls"]
+position = Vector2(-1290.0, 360.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRoom0Left"]
+shape = SubResource("24")
+
+; Ceiling of Room 0 — keeps the player from jumping out of the top
+[node name="CeilRoom0" type="StaticBody2D" parent="Walls"]
+position = Vector2(-640.0, -10.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/CeilRoom0"]
+shape = SubResource("27")
+
+; Left wall of Room 6 — seals the western edge of the new underground room
+[node name="WallRoom6Left" type="StaticBody2D" parent="Walls"]
+position = Vector2(-1290.0, 1080.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRoom6Left"]
+shape = SubResource("24")
+
+; Left edge of Rooms 4+5 only — Room 6 is now open to Room 3 at x=0
 [node name="WallLeft" type="StaticBody2D" parent="Walls"]
-position = Vector2(-10.0, 1080.0)
+position = Vector2(-10.0, 1800.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallLeft"]
 shape = SubResource("23")
@@ -619,6 +1061,13 @@ position = Vector2(1290.0, 1620.0)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRoom4RightTop"]
 shape = SubResource("26")
+
+; Right edge of Room 7 — x: 2560 to 2580, y: 720–1440
+[node name="WallRoom7Right" type="StaticBody2D" parent="Walls"]
+position = Vector2(2570.0, 1080.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRoom7Right"]
+shape = SubResource("24")
 
 ; Right edge of Room 5 — x: 2560 to 2580, y: 1440–2160
 [node name="WallRoom5Right" type="StaticBody2D" parent="Walls"]

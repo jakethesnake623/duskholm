@@ -9,6 +9,8 @@ var _settings_panel : Control     = null
 var _confirm_panel  : Control     = null
 var _no_save_label  : Label       = null
 var _fs_toggle      : CheckButton = null
+var _master_val_lbl : Label       = null
+var _sfx_val_lbl    : Label       = null
 
 
 func _ready() -> void:
@@ -120,17 +122,17 @@ func _build_settings() -> Control:
 	root.add_child(dim)
 
 	var panel := ColorRect.new()
-	panel.position = Vector2(380, 160)
-	panel.size     = Vector2(520, 390)
+	panel.position = Vector2(380, 130)
+	panel.size     = Vector2(520, 500)
 	panel.color    = Color(0.08, 0.07, 0.11, 1.0)
 	root.add_child(panel)
 
 	# Border lines
 	for bd in [
-		[Vector2(380, 160), Vector2(520, 1)],
-		[Vector2(380, 549), Vector2(520, 1)],
-		[Vector2(380, 160), Vector2(1,   390)],
-		[Vector2(899, 160), Vector2(1,   390)],
+		[Vector2(380, 130), Vector2(520, 1)],
+		[Vector2(380, 629), Vector2(520, 1)],
+		[Vector2(380, 130), Vector2(1,   500)],
+		[Vector2(899, 130), Vector2(1,   500)],
 	]:
 		var b := ColorRect.new()
 		b.position = bd[0]
@@ -143,36 +145,89 @@ func _build_settings() -> Control:
 	stitle.add_theme_font_size_override("font_size", 26)
 	stitle.add_theme_color_override("font_color", Color(0.85, 0.82, 0.78, 1.0))
 	stitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	stitle.position = Vector2(380, 192)
+	stitle.position = Vector2(380, 158)
 	stitle.size     = Vector2(520, 38)
 	root.add_child(stitle)
 
-	var sdiv := ColorRect.new()
-	sdiv.position = Vector2(420, 242)
-	sdiv.size     = Vector2(440, 1)
-	sdiv.color    = Color(0.38, 0.24, 0.55, 0.40)
-	root.add_child(sdiv)
+	# ── DISPLAY section ──────────────────────────────────────────────────────────
+	_settings_section_header(root, "DISPLAY", 208)
 
-	# Fullscreen row
 	var fslabel := Label.new()
 	fslabel.text = "Fullscreen"
 	fslabel.add_theme_font_size_override("font_size", 18)
 	fslabel.add_theme_color_override("font_color", BTN_NORMAL)
-	fslabel.position = Vector2(430, 272)
+	fslabel.position = Vector2(430, 240)
 	fslabel.size     = Vector2(280, 30)
 	root.add_child(fslabel)
 
 	_fs_toggle = CheckButton.new()
-	_fs_toggle.position      = Vector2(754, 270)
+	_fs_toggle.position      = Vector2(754, 238)
 	_fs_toggle.button_pressed = DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
 	_fs_toggle.toggled.connect(_on_fullscreen_toggled)
 	root.add_child(_fs_toggle)
 
-	var back := _menu_button("Back", Vector2(490, 464))
+	# ── AUDIO section ────────────────────────────────────────────────────────────
+	_settings_section_header(root, "AUDIO", 292)
+
+	_master_val_lbl = _settings_slider_row(root, "Master Volume",  324,
+		AudioManager.get_master_volume(), _on_master_changed)
+	_sfx_val_lbl    = _settings_slider_row(root, "SFX Volume",     388,
+		AudioManager.get_sfx_volume(),    _on_sfx_changed)
+
+	# ── Back button ──────────────────────────────────────────────────────────────
+	var back := _menu_button("Back", Vector2(490, 540))
 	back.pressed.connect(_on_close_settings)
 	root.add_child(back)
 
 	return root
+
+
+func _settings_section_header(root: Control, title: String, y: float) -> void:
+	var div := ColorRect.new()
+	div.position = Vector2(420, y)
+	div.size     = Vector2(440, 1)
+	div.color    = Color(0.38, 0.24, 0.55, 0.40)
+	root.add_child(div)
+
+	var lbl := Label.new()
+	lbl.text = title
+	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.add_theme_color_override("font_color", Color(0.55, 0.44, 0.68, 0.85))
+	lbl.position = Vector2(430, y + 6)
+	lbl.size     = Vector2(440, 20)
+	root.add_child(lbl)
+
+
+func _settings_slider_row(root: Control, label_text: String, y: float,
+		initial: float, callback: Callable) -> Label:
+	var lbl := Label.new()
+	lbl.text = label_text
+	lbl.add_theme_font_size_override("font_size", 17)
+	lbl.add_theme_color_override("font_color", BTN_NORMAL)
+	lbl.position = Vector2(430, y)
+	lbl.size     = Vector2(160, 28)
+	root.add_child(lbl)
+
+	var slider := HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step      = 0.01
+	slider.value     = initial
+	slider.position  = Vector2(600, y + 2)
+	slider.size      = Vector2(200, 24)
+	slider.value_changed.connect(callback)
+	root.add_child(slider)
+
+	var val_lbl := Label.new()
+	val_lbl.text = "%d%%" % roundi(initial * 100.0)
+	val_lbl.add_theme_font_size_override("font_size", 15)
+	val_lbl.add_theme_color_override("font_color", Color(0.55, 0.53, 0.46, 1.0))
+	val_lbl.position = Vector2(814, y)
+	val_lbl.size     = Vector2(54, 28)
+	val_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	root.add_child(val_lbl)
+
+	return val_lbl
 
 
 # ── Shared button factory ──────────────────────────────────────────────────────
@@ -285,13 +340,29 @@ func _on_open_settings() -> void:
 	_settings_panel.visible = true
 
 
-func _on_close_settings() -> void:
-	_settings_panel.visible = false
-	_menu_root.visible      = true
-
-
 func _on_fullscreen_toggled(on: bool) -> void:
 	if on:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 	else:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+
+
+func _on_master_changed(value: float) -> void:
+	AudioManager.set_master_volume(value)
+	if _master_val_lbl:
+		_master_val_lbl.text = "%d%%" % roundi(value * 100.0)
+
+
+func _on_sfx_changed(value: float) -> void:
+	AudioManager.set_sfx_volume(value)
+	if _sfx_val_lbl:
+		_sfx_val_lbl.text = "%d%%" % roundi(value * 100.0)
+
+
+func _on_close_settings() -> void:
+	AudioManager.save_settings(
+		AudioManager.get_master_volume(),
+		AudioManager.get_sfx_volume()
+	)
+	_settings_panel.visible = false
+	_menu_root.visible      = true

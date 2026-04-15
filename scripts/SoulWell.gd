@@ -1,13 +1,33 @@
 extends Node2D
 
+## Export one or more inner-voice lines. On the very first interaction they
+## play in sequence before the well menu opens. Leave empty to skip.
+@export var inner_voice_lines : PackedStringArray = PackedStringArray()
+## The room this well belongs to. Set in the scene; used to reveal the room on the minimap.
+@export var room_id           : String            = ""
+
 var player_nearby := false
 var player_ref    : CharacterBody2D = null
 var activated     := false
 var _menu_open    := false
 
+# Inner-voice dialogue state (first visit only)
+var _first_visit   := true
+var _voice_active  := false
+var _voice_index   := 0
+
+# Typewriter state
+const CHARS_PER_SEC : float = 44.0
+var _typing         := false
+var _type_elapsed   := 0.0
+var _type_full_text := ""
+
 var _glow_rect  : ColorRect   = null
 var _well_menu  : CanvasLayer = null
 var _status_lbl : Label       = null
+var _voice_layer : CanvasLayer = null
+var _voice_text  : Label       = null
+var _voice_hint  : Label       = null
 
 @onready var prompt_label : Label       = $PromptLabel
 @onready var detect_zone  : Area2D      = $DetectZone
@@ -18,6 +38,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_visual()
 	_build_well_menu()
+	_build_voice_display()
 	prompt_label.visible = false
 	detect_zone.body_entered.connect(_on_body_entered)
 	detect_zone.body_exited.connect(_on_body_exited)
@@ -123,9 +144,113 @@ func _well_btn(txt: String, pos: Vector2) -> Button:
 	return btn
 
 
+# ── Inner voice display ────────────────────────────────────────────────────────
+
+func _build_voice_display() -> void:
+	_voice_layer         = CanvasLayer.new()
+	_voice_layer.layer   = 9
+	_voice_layer.visible = false
+	add_child(_voice_layer)
+
+	# Minimal dark veil — no thick bar, just enough to separate text from world
+	var bg := ColorRect.new()
+	bg.position = Vector2(0.0, 558.0)
+	bg.size     = Vector2(1280.0, 162.0)
+	bg.color    = Color(0.0, 0.0, 0.0, 0.72)
+	_voice_layer.add_child(bg)
+
+	# Cold thin accent line — distinct from the merchant's purple
+	var accent := ColorRect.new()
+	accent.position = Vector2(0.0, 558.0)
+	accent.size     = Vector2(1280.0, 1.0)
+	accent.color    = Color(0.24, 0.28, 0.60, 0.50)
+	_voice_layer.add_child(accent)
+
+	# Inner voice text — cool off-white, wide margins
+	_voice_text = Label.new()
+	_voice_text.add_theme_font_size_override("font_size", 17)
+	_voice_text.add_theme_color_override("font_color", Color(0.80, 0.82, 0.90, 0.95))
+	_voice_text.autowrap_mode        = TextServer.AUTOWRAP_WORD_SMART
+	_voice_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_voice_text.position = Vector2(160.0, 576.0)
+	_voice_text.size     = Vector2(960.0, 60.0)
+	_voice_layer.add_child(_voice_text)
+
+	# Continue hint — right-aligned, dim
+	_voice_hint = Label.new()
+	_voice_hint.add_theme_font_size_override("font_size", 11)
+	_voice_hint.add_theme_color_override("font_color", Color(0.42, 0.44, 0.58, 0.70))
+	_voice_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_voice_hint.position = Vector2(160.0, 648.0)
+	_voice_hint.size     = Vector2(960.0, 18.0)
+	_voice_layer.add_child(_voice_hint)
+
+
+func _start_voice() -> void:
+	_voice_active        = true
+	_voice_index         = 0
+	prompt_label.visible = false
+	_show_voice_line()
+
+
+func _advance_voice() -> void:
+	_voice_index += 1
+	if _voice_index >= inner_voice_lines.size():
+		_finish_voice()
+	else:
+		_show_voice_line()
+
+
+func _finish_voice() -> void:
+	_typing              = false
+	_voice_active        = false
+	_first_visit         = false
+	_voice_layer.visible = false
+	_open_menu()
+
+
+func _cancel_voice() -> void:
+	_typing              = false
+	_voice_active        = false
+	_first_visit         = false
+	_voice_layer.visible = false
+
+
+func _show_voice_line() -> void:
+	var line := inner_voice_lines[_voice_index] as String
+	var last := _voice_index >= inner_voice_lines.size() - 1
+	_voice_hint.text     = "[ E ]  Rest" if last else "[ E ]  Continue"
+	_voice_layer.visible = true
+	_begin_typing(line)
+
+
+# ── Typewriter ──────────────────────────────────────────────────────────────────
+
+func _begin_typing(text: String) -> void:
+	_type_full_text  = text
+	_type_elapsed    = 0.0
+	_typing          = true
+	_voice_text.text = ""
+
+
+func _tick_typing(delta: float) -> void:
+	if not _typing:
+		return
+	_type_elapsed += delta
+	var revealed : int = mini(int(_type_elapsed * CHARS_PER_SEC), _type_full_text.length())
+	_voice_text.text = _type_full_text.left(revealed)
+	if revealed >= _type_full_text.length():
+		_typing = false
+
+
+func _skip_typing() -> void:
+	_typing          = false
+	_voice_text.text = _type_full_text
+
+
 # ── Process ────────────────────────────────────────────────────────────────────
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if _glow_rect:
 		var t     := Time.get_ticks_msec() * 0.001
 		var speed := 2.2 if activated else 0.7
@@ -135,10 +260,19 @@ func _process(_delta: float) -> void:
 		else:
 			_glow_rect.color = Color(0.20, 0.06, 0.45, 0.30 + 0.20 * pulse)
 
-	if _menu_open and Input.is_action_just_pressed("ui_cancel"):
+	_tick_typing(delta)
+
+	if _typing and Input.is_action_just_pressed("interact"):
+		_skip_typing()
+	elif _voice_active and Input.is_action_just_pressed("interact"):
+		_advance_voice()
+	elif _menu_open and Input.is_action_just_pressed("ui_cancel"):
 		_close_menu()
-	elif player_nearby and not _menu_open and Input.is_action_just_pressed("interact"):
-		_open_menu()
+	elif player_nearby and not _menu_open and not _voice_active and Input.is_action_just_pressed("interact"):
+		if _first_visit and inner_voice_lines.size() > 0:
+			_start_voice()
+		else:
+			_open_menu()
 
 
 # ── Menu actions ───────────────────────────────────────────────────────────────
@@ -163,6 +297,7 @@ func _do_ponder() -> void:
 	activated = true
 	GameData.spawn_position = global_position + Vector2(0, -8)
 	player_ref.rest(global_position)
+	GameData.discover_room(room_id)
 	GameData.save()
 	GameData.rested.emit()
 	_show_status("...the well remembers...")
@@ -199,5 +334,7 @@ func _on_body_exited(body: Node) -> void:
 	if body.is_in_group("player"):
 		player_nearby = false
 		player_ref    = null
+		if _voice_active:
+			_cancel_voice()
 		if not _menu_open:
 			prompt_label.visible = false

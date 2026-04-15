@@ -6,9 +6,11 @@ signal embers_changed(current: int)
 signal upgrade_purchased(key: String)
 signal throwables_changed
 signal rested
+signal room_discovered(room_id: String)
 
-var embers         := 0
-var spawn_position := Vector2(200.0, 620.0)
+var embers           := 0
+var spawn_position   := Vector2(-980.0, 620.0)
+var discovered_rooms : Array = []
 
 # ── Throwable inventory ────────────────────────────────────────────────────────
 
@@ -85,6 +87,13 @@ func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
 
+func discover_room(room_id: String) -> void:
+	if room_id.is_empty() or discovered_rooms.has(room_id):
+		return
+	discovered_rooms.append(room_id)
+	room_discovered.emit(room_id)
+
+
 func save() -> void:
 	var data := {
 		"embers":           embers,
@@ -93,6 +102,7 @@ func save() -> void:
 		"spawn_y":          spawn_position.y,
 		"throwable_counts": throwable_counts.duplicate(),
 		"active_throwable": active_throwable,
+		"discovered_rooms": discovered_rooms.duplicate(),
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -117,7 +127,8 @@ func load_save() -> bool:
 	var tcounts = data.get("throwable_counts", {})
 	for key in throwable_counts:
 		throwable_counts[key] = int(tcounts.get(key, 0))
-	active_throwable = data.get("active_throwable", "flask")
+	active_throwable  = data.get("active_throwable", "flask")
+	discovered_rooms  = data.get("discovered_rooms", [])
 	embers_changed.emit(embers)
 	throwables_changed.emit()
 	return true
@@ -131,8 +142,9 @@ func delete_save() -> void:
 # ── Reset ─────────────────────────────────────────────────────────────────────
 
 func reset() -> void:
-	embers         = 0
-	spawn_position = Vector2(200.0, 620.0)
+	embers           = 0
+	spawn_position   = Vector2(-980.0, 620.0)
+	discovered_rooms = []
 	for key in upgrade_levels:
 		upgrade_levels[key] = 0
 	for key in throwable_counts:

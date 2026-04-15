@@ -16,6 +16,10 @@ const LUNGE_TIME      = 0.20   # duration hitbox is active
 const LUNGE_FORCE     = 370.0
 const ATTACK_COOLDOWN = 2.2    # seconds before can attack again
 
+# --- Jumping ---
+const JUMP_VELOCITY   = -490.0
+const JUMP_CD_TIME    = 0.75   # minimum gap between jumps
+
 # --- Variant stats (set in _apply_variant) ---
 var max_health : int
 var move_speed : float
@@ -31,6 +35,7 @@ var patrol_dir   := 1.0
 var state_timer  := 0.0
 var attack_cd    := 0.0
 var attack_phase := 0        # 0 = windup  1 = lunge
+var _jump_cd     := 0.0
 var base_scale_x  := 1.0      # preserve variant x-scale when flipping
 var player_ref    : CharacterBody2D = null
 
@@ -60,6 +65,8 @@ var _death_tween    : Tween = null
 
 func _ready() -> void:
 	_spawn_position = global_position
+	collision_layer = 2   # enemies on layer 2 — world is layer 1, player is layer 2
+	collision_mask  = 1   # only collide with world geometry; never touch player/enemy bodies
 	_apply_variant()
 	health = max_health
 	_build_visual()
@@ -172,7 +179,8 @@ func _physics_process(delta: float) -> void:
 
 	_apply_gravity(delta)
 	state_timer -= delta
-	attack_cd    = max(attack_cd - delta, 0.0)
+	attack_cd    = max(attack_cd  - delta, 0.0)
+	_jump_cd     = max(_jump_cd   - delta, 0.0)
 
 	match state:
 		State.PATROL: _state_patrol(delta)
@@ -193,9 +201,9 @@ func _apply_gravity(delta: float) -> void:
 # ── States ─────────────────────────────────────────────────────────────────────
 
 func _state_patrol(_delta: float) -> void:
-	velocity.x = patrol_dir * move_speed
-	if is_on_wall():
+	if is_on_wall() or (is_on_floor() and not _has_floor_ahead()):
 		patrol_dir *= -1
+	velocity.x = patrol_dir * move_speed
 
 
 func _state_chase(_delta: float) -> void:
@@ -211,6 +219,16 @@ func _state_chase(_delta: float) -> void:
 		return
 
 	velocity.x = sign(diff.x) * move_speed
+
+	# Jump to reach the player on a higher platform
+	if is_on_floor() and _jump_cd <= 0.0:
+		# Wall is blocking horizontal path and player is above — jump over it
+		var blocked_by_wall := is_on_wall() and diff.y < -20.0
+		# Player is significantly above and the floor drops away ahead (platform edge)
+		var needs_hop := diff.y < -72.0 and not _has_floor_ahead()
+		if blocked_by_wall or needs_hop:
+			velocity.y = JUMP_VELOCITY
+			_jump_cd   = JUMP_CD_TIME
 
 
 func _start_attack() -> void:
@@ -243,6 +261,21 @@ func _state_hurt(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, 0.0, 1400.0 * delta)
 	if state_timer <= 0.0:
 		state = State.CHASE if is_instance_valid(player_ref) else State.PATROL
+
+
+# ── Navigation helpers ─────────────────────────────────────────────────────────
+
+## Returns true if there is solid ground within 52 px below a point 22 px ahead.
+## Used to detect platform edges so patrol reverses before walking off.
+func _has_floor_ahead() -> bool:
+	var space  := get_world_2d().direct_space_state
+	var params := PhysicsRayQueryParameters2D.new()
+	var fwd    := 22.0 * (1.0 if facing_right else -1.0)
+	params.from           = global_position + Vector2(fwd, 4.0)
+	params.to             = global_position + Vector2(fwd, 56.0)
+	params.exclude        = [get_rid()]
+	params.collision_mask = 1
+	return not space.intersect_ray(params).is_empty()
 
 
 # ── Procedural animation ───────────────────────────────────────────────────────
@@ -345,7 +378,9 @@ func _take_damage(amount: int) -> void:
 		_die()
 		return
 
-	# Stagger briefly
+	# Cancel any active attack before staggering
+	atk_box.monitoring = false
+	atk_col.disabled   = true
 	state       = State.HURT
 	state_timer = 0.25
 	_flash_red()
@@ -406,13 +441,14 @@ func _reset() -> void:
 	state_timer  = 0.0
 	attack_cd    = 0.0
 	attack_phase = 0
+	_jump_cd     = 0.0
 	player_ref   = null
 	patrol_dir   = 1.0
 	velocity     = Vector2.ZERO
 	_walk_time   = 0.0
 
 	# Re-enable physics and hitboxes
-	collision_layer    = 1
+	collision_layer    = 2
 	collision_mask     = 1
 	body_col.disabled  = false
 	hurtbox.monitoring = true

@@ -31,6 +31,8 @@ const DASH_DURATION  = 0.14
 const DASH_COOLDOWN  = 0.85
 const DASH_I_FRAMES  = 0.25
 
+var debug_invincible  := false
+
 var health            := 0
 var i_frames_timer    := 0.0
 var spawn_position    : Vector2
@@ -62,6 +64,8 @@ var _slash_angle  := -1.20   # radians; drives nail arc from up-forward to down-
 
 func _ready() -> void:
 	add_to_group("player")
+	collision_layer = 2   # own layer — world is 1, so enemy mask=1 won't detect us
+	collision_mask  = 1   # only collide with world geometry
 	spawn_position     = global_position
 	last_safe_position = global_position
 	health = GameData.get_max_health()
@@ -233,8 +237,13 @@ func _swing_nail() -> void:
 
 # ── Health ─────────────────────────────────────────────────────────────────────
 
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.keycode == KEY_Y and event.pressed and not event.echo:
+		debug_invincible = not debug_invincible
+
+
 func take_damage(amount: int, knockback_dir: Vector2 = Vector2.ZERO) -> void:
-	if i_frames_timer > 0.0 or is_dashing:
+	if debug_invincible or i_frames_timer > 0.0 or is_dashing:
 		return
 
 	health = max(health - amount, 0)
@@ -249,6 +258,11 @@ func take_damage(amount: int, knockback_dir: Vector2 = Vector2.ZERO) -> void:
 
 	if health <= 0:
 		_die()
+
+
+func heal(amount: int) -> void:
+	health = mini(health + amount, GameData.get_max_health())
+	health_changed.emit(health, GameData.get_max_health())
 
 
 func rest(well_position: Vector2) -> void:
@@ -333,7 +347,9 @@ func _update_visuals(delta: float) -> void:
 	visual.scale.x = abs(visual.scale.x) * face
 
 	# ── Modulate (colour effects) ──────────────────────────────────────────────
-	if is_dashing:
+	if debug_invincible:
+		visual.modulate = Color(0.40, 1.0, 1.0, 0.85)
+	elif is_dashing:
 		visual.modulate = Color(1.4, 1.4, 2.0, 0.85)
 	elif i_frames_timer > 0.0:
 		visual.modulate.a = 0.25 + 0.75 * abs(sin(Time.get_ticks_msec() * 0.015))

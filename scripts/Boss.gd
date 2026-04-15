@@ -58,6 +58,8 @@ var _death_tween     : Tween = null
 
 func _ready() -> void:
 	_spawn_position = global_position
+	collision_layer = 2
+	collision_mask  = 1
 	health = MAX_HEALTH
 	_build_visual()
 
@@ -281,9 +283,9 @@ func _on_slam_land() -> void:
 	if not is_instance_valid(player_ref):
 		return
 
-	# Immediate impact — close range, full damage
+	# Immediate impact — close range, full damage. Airborne players are safe.
 	var dist : float = abs(player_ref.global_position.x - global_position.x)
-	if dist < SLAM_RADIUS and player_ref.has_method("take_damage"):
+	if dist < SLAM_RADIUS and player_ref.is_on_floor() and player_ref.has_method("take_damage"):
 		var dir : Vector2 = (player_ref.global_position - global_position).normalized()
 		player_ref.take_damage(SLAM_DAMAGE, dir)
 
@@ -298,9 +300,9 @@ func _slam_shockwave() -> void:
 		return
 	if state == State.DEAD:
 		return
-	# Hits the band between the immediate radius and 2x that distance
+	# Hits the band between the immediate radius and 2x that distance. Airborne players are safe.
 	var dist : float = abs(player_ref.global_position.x - global_position.x)
-	if dist >= SLAM_RADIUS and dist < SLAM_RADIUS * 2.2 and player_ref.has_method("take_damage"):
+	if dist >= SLAM_RADIUS and dist < SLAM_RADIUS * 2.2 and player_ref.is_on_floor() and player_ref.has_method("take_damage"):
 		var dir : Vector2 = (player_ref.global_position - global_position).normalized()
 		player_ref.take_damage(1, dir)
 
@@ -431,6 +433,8 @@ func _die() -> void:
 	hurtbox.monitoring = false
 	detect.monitoring  = false
 	body_col.disabled  = true
+	collision_layer    = 0
+	collision_mask     = 0
 	velocity           = Vector2.ZERO
 	set_physics_process(false)
 
@@ -469,6 +473,8 @@ func _reset() -> void:
 	velocity             = Vector2.ZERO
 
 	body_col.disabled  = false
+	collision_layer    = 2
+	collision_mask     = 1
 	hurtbox.monitoring = true
 	detect.monitoring  = true
 	atk_box.monitoring = false
