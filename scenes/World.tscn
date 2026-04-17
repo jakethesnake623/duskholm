@@ -1,4 +1,4 @@
-[gd_scene load_steps=39 format=3]
+[gd_scene load_steps=41 format=3]
 
 [ext_resource type="Script" path="res://scripts/World.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2"]
@@ -16,6 +16,8 @@
 [ext_resource type="PackedScene" path="res://scenes/Chest.tscn" id="14"]
 [ext_resource type="PackedScene" path="res://scenes/MiniMap.tscn" id="15"]
 [ext_resource type="PackedScene" path="res://scenes/ZipLine.tscn" id="16"]
+[ext_resource type="PackedScene" path="res://scenes/Boss2.tscn" id="17"]
+[ext_resource type="PackedScene" path="res://scenes/BossHealthBar2.tscn" id="18"]
 
 ; ── Shared collision shapes ────────────────────────────────────────────────────
 [sub_resource type="RectangleShape2D" id="10"]
@@ -51,7 +53,7 @@ size = Vector2(120.0, 80.0)
 
 ; ── Death zone ─────────────────────────────────────────────────────────────────
 [sub_resource type="RectangleShape2D" id="20"]
-size = Vector2(6000.0, 100.0)
+size = Vector2(7000.0, 100.0)
 
 [sub_resource type="RectangleShape2D" id="21"]
 size = Vector2(100.0, 24.0)
@@ -66,6 +68,9 @@ size = Vector2(20.0, 720.0)
 
 [sub_resource type="RectangleShape2D" id="27"]
 size = Vector2(1280.0, 20.0)
+
+[sub_resource type="RectangleShape2D" id="28"]
+size = Vector2(4.0, 760.0)
 
 [sub_resource type="RectangleShape2D" id="24"]
 size = Vector2(20.0, 720.0)
@@ -248,6 +253,17 @@ reward_amount = 250
 position = Vector2(-750.0, 1045.0)
 reward_type = "flask"
 reward_amount = 2
+
+; ── Enemy barrier — blocks enemies from entering Room 0 (The Cradle) ──────────
+; Layer 3 (collision_layer=4) — enemies have collision_mask=5 (layers 1+3),
+; player has collision_mask=1 so this wall is invisible to the player.
+[node name="Room0EnemyBarrier" type="StaticBody2D" parent="."]
+position = Vector2(0.0, 360.0)
+collision_layer = 4
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room0EnemyBarrier"]
+shape = SubResource("28")
 
 ; ── Room 1: The Entrance  (x: 0–1280, y: 0–720) ──────────────────────────────
 [node name="Room1" type="Node2D" parent="."]
@@ -806,7 +822,7 @@ shape = SubResource("19")
 
 ; ── Death zone (below Room 4) ──────────────────────────────────────────────────
 [node name="DeathZone" type="Area2D" parent="."]
-position = Vector2(640.0, 2230.0)
+position = Vector2(1280.0, 2230.0)
 monitoring = true
 monitorable = false
 
@@ -1080,11 +1096,11 @@ position = Vector2(2570.0, 1080.0)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRoom7Right"]
 shape = SubResource("24")
 
-; Right edge of Room 5 — x: 2560 to 2580, y: 1440–2160
-[node name="WallRoom5Right" type="StaticBody2D" parent="Walls"]
-position = Vector2(2570.0, 1800.0)
+; Right edge of Room 8 — x: 3840 to 3860, y: 1440–2160
+[node name="WallRoom8Right" type="StaticBody2D" parent="Walls"]
+position = Vector2(3850.0, 1800.0)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRoom5Right"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRoom8Right"]
 shape = SubResource("24")
 
 ; ── Boss ───────────────────────────────────────────────────────────────────────
@@ -1227,6 +1243,75 @@ variant = 1
 [node name="SkeletonO" parent="Room5" instance=ExtResource("4")]
 position = Vector2(2450.0, 2060.0)
 
+; ── Room 8: The Foundry  (x: 2560–3840, y: 1440–2160) ───────────────────────
+; The Ember Engine's domain. Industrial ruin, molten atmosphere.
+; Accessible only after The Warden is defeated and the FurnaceGate crumbles.
+[node name="Room8" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Room8"]
+position = Vector2(3200.0, 2140.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room8/Floor"]
+shape = SubResource("12")
+
+[node name="Visual" type="ColorRect" parent="Room8/Floor"]
+offset_left   = -640.0
+offset_top    =  -20.0
+offset_right  =  640.0
+offset_bottom =   20.0
+color = Color(0.14, 0.08, 0.04, 1)
+
+; Three platforms — L and R at mid height, C elevated (good for ranged shots)
+[node name="PlatformL" type="StaticBody2D" parent="Room8"]
+position = Vector2(2750.0, 1940.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room8/PlatformL"]
+shape = SubResource("14")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room8/PlatformL"]
+offset_left   = -80.0
+offset_top    = -12.0
+offset_right  =  80.0
+offset_bottom =  12.0
+color = Color(0.20, 0.10, 0.05, 1)
+
+[node name="PlatformC" type="StaticBody2D" parent="Room8"]
+position = Vector2(3200.0, 1800.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room8/PlatformC"]
+shape = SubResource("16")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room8/PlatformC"]
+offset_left   = -100.0
+offset_top    =  -12.0
+offset_right  =  100.0
+offset_bottom =   12.0
+color = Color(0.20, 0.10, 0.05, 1)
+
+[node name="PlatformR" type="StaticBody2D" parent="Room8"]
+position = Vector2(3650.0, 1940.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room8/PlatformR"]
+shape = SubResource("14")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room8/PlatformR"]
+offset_left   = -80.0
+offset_top    = -12.0
+offset_right  =  80.0
+offset_bottom =  12.0
+color = Color(0.20, 0.10, 0.05, 1)
+
+; ── Furnace Gate (seals Room 5 → Room 8 passage until The Warden is defeated) ──
+[node name="FurnaceGate" parent="." instance=ExtResource("13")]
+position = Vector2(2560.0, 1960.0)
+
+; ── Boss 2: FORGE-7 ────────────────────────────────────────────────────────────
+[node name="Boss2" parent="." instance=ExtResource("17")]
+position = Vector2(3200.0, 2095.0)
+
 ; ── HUD ────────────────────────────────────────────────────────────────────────
 [node name="HUD" parent="." instance=ExtResource("3")]
 
@@ -1235,3 +1320,5 @@ position = Vector2(2450.0, 2060.0)
 [node name="PauseMenu" parent="." instance=ExtResource("9")]
 
 [node name="BossHealthBar" parent="." instance=ExtResource("12")]
+
+[node name="BossHealthBar2" parent="." instance=ExtResource("18")]

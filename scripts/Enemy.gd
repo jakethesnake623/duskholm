@@ -66,7 +66,7 @@ var _death_tween    : Tween = null
 func _ready() -> void:
 	_spawn_position = global_position
 	collision_layer = 2   # enemies on layer 2 — world is layer 1, player is layer 2
-	collision_mask  = 1   # only collide with world geometry; never touch player/enemy bodies
+	collision_mask  = 5   # layer 1 (world) + layer 3 (enemy barriers)
 	_apply_variant()
 	health = max_health
 	_build_visual()

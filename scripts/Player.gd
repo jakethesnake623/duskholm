@@ -1,6 +1,7 @@
 extends CharacterBody2D
 
-const THROWABLE_SCENE = preload("res://scenes/Throwable.tscn")
+const THROWABLE_SCENE   = preload("res://scenes/Throwable.tscn")
+const EMBER_BOLT_SCENE  = preload("res://scenes/EmberBolt.tscn")
 
 signal health_changed(current: int, maximum: int)
 signal died(death_pos: Vector2, ember_amount: int)
@@ -31,6 +32,12 @@ const DASH_DURATION  = 0.14
 const DASH_COOLDOWN  = 0.85
 const DASH_I_FRAMES  = 0.25
 
+# --- Ember Launcher ---
+const FIRE_RATE      = 0.12    # seconds between shots
+const HEAT_PER_SHOT  = 0.125   # 8 shots fills the bar
+const HEAT_COOL_RATE = 0.30    # heat lost per second when not firing
+const OVERHEAT_DUR   = 2.2     # seconds locked after overheating
+
 var debug_invincible  := false
 
 var health            := 0
@@ -49,6 +56,22 @@ var is_dashing    := false
 var dash_timer    := 0.0
 var dash_cd_timer := 0.0
 var _on_zipline   := false
+
+# --- Ember Launcher state ---
+var active_weapon    := "nail"   # "nail" or "launcher"
+var _heat            := 0.0
+var _overheating     := false
+var _overheat_timer  := 0.0
+var _fire_timer      := 0.0
+var _fired_this_frame := false
+
+# Launcher HUD refs (built at runtime)
+var _launcher_barrel : ColorRect = null
+var _launcher_hud    : CanvasLayer = null
+var _heat_fill       : ColorRect   = null
+var _heat_bg         : ColorRect   = null
+var _weapon_lbl      : Label       = null
+var _overheat_lbl    : Label       = null
 
 # --- Procedural animation ---
 const LAND_SQUASH_TIME := 0.18
@@ -72,6 +95,151 @@ func _ready() -> void:
 	last_safe_position = global_position
 	health = GameData.get_max_health()
 	nail_hitbox.area_entered.connect(_on_nail_area_entered)
+	_build_launcher_visual()
+	_build_launcher_hud()
+	GameData.upgrade_purchased.connect(func(_k: String): _on_upgrade_purchased())
+
+
+# ── Launcher visual & HUD setup ────────────────────────────────────────────────
+
+func _build_launcher_visual() -> void:
+	# Brass barrel — child of Visual so it flips with facing direction
+	_launcher_barrel = ColorRect.new()
+	_launcher_barrel.size     = Vector2(18.0, 5.0)
+	_launcher_barrel.position = Vector2(6.0, -12.0)
+	_launcher_barrel.color    = Color(0.68, 0.50, 0.18, 1.0)
+	_launcher_barrel.visible  = false
+	visual.add_child(_launcher_barrel)
+
+	# Small copper band at the base of the barrel
+	var band := ColorRect.new()
+	band.size     = Vector2(5.0, 7.0)
+	band.position = Vector2(4.0, -13.0)
+	band.color    = Color(0.55, 0.38, 0.12, 1.0)
+	band.visible  = false
+	visual.add_child(band)
+	# Stow a reference so we can toggle it alongside the barrel
+	_launcher_barrel.set_meta("band", band)
+
+
+func _build_launcher_hud() -> void:
+	_launcher_hud = CanvasLayer.new()
+	_launcher_hud.layer = 3
+	add_child(_launcher_hud)
+
+	# Weapon label  e.g. "[T] LAUNCHER"
+	_weapon_lbl = Label.new()
+	_weapon_lbl.add_theme_font_size_override("font_size", 10)
+	_weapon_lbl.add_theme_color_override("font_color", Color(0.85, 0.80, 0.65, 0.90))
+	_weapon_lbl.position = Vector2(8.0, 660.0)
+	_weapon_lbl.size     = Vector2(140.0, 14.0)
+	_launcher_hud.add_child(_weapon_lbl)
+
+	# Heat bar background
+	_heat_bg = ColorRect.new()
+	_heat_bg.position = Vector2(8.0, 676.0)
+	_heat_bg.size     = Vector2(100.0, 6.0)
+	_heat_bg.color    = Color(0.10, 0.08, 0.06, 0.80)
+	_launcher_hud.add_child(_heat_bg)
+
+	# Heat bar fill
+	_heat_fill = ColorRect.new()
+	_heat_fill.position = Vector2(8.0, 676.0)
+	_heat_fill.size     = Vector2(0.0, 6.0)
+	_heat_fill.color    = Color(0.95, 0.50, 0.08, 1.0)
+	_launcher_hud.add_child(_heat_fill)
+
+	# Overheat label
+	_overheat_lbl = Label.new()
+	_overheat_lbl.text = "VENTING..."
+	_overheat_lbl.add_theme_font_size_override("font_size", 9)
+	_overheat_lbl.add_theme_color_override("font_color", Color(1.0, 0.20, 0.10, 0.90))
+	_overheat_lbl.position = Vector2(112.0, 672.0)
+	_overheat_lbl.visible  = false
+	_launcher_hud.add_child(_overheat_lbl)
+
+	_refresh_launcher_hud_visibility()
+
+
+func _on_upgrade_purchased() -> void:
+	_refresh_launcher_hud_visibility()
+
+
+func _refresh_launcher_hud_visibility() -> void:
+	var owned := GameData.has_launcher()
+	_launcher_hud.visible = owned
+	if owned:
+		_update_launcher_hud()
+
+
+# ── Launcher per-frame ─────────────────────────────────────────────────────────
+
+func _handle_launcher(delta: float) -> void:
+	_fired_this_frame = false
+
+	if _overheating:
+		_overheat_timer -= delta
+		if _overheat_timer <= 0.0:
+			_overheating    = false
+			_heat           = 0.0
+			_overheat_timer = 0.0
+	else:
+		_fire_timer = maxf(_fire_timer - delta, 0.0)
+
+		if Input.is_action_pressed("attack") and _fire_timer <= 0.0:
+			_fire_bolt()
+			_heat += HEAT_PER_SHOT
+			_fire_timer = FIRE_RATE
+			_fired_this_frame = true
+
+			if _heat >= 1.0:
+				_heat = 1.0
+				_overheating    = true
+				_overheat_timer = OVERHEAT_DUR
+				AudioManager.play("overheat")
+
+	# Cool down when not actively firing
+	if not _fired_this_frame and not _overheating:
+		_heat = maxf(_heat - HEAT_COOL_RATE * delta, 0.0)
+
+	_update_launcher_hud()
+
+
+func _fire_bolt() -> void:
+	var bolt := EMBER_BOLT_SCENE.instantiate() as Area2D
+	var dir   : float = 1.0 if facing_right else -1.0
+	bolt.global_position = global_position + Vector2(dir * 14.0, -12.0)
+	bolt.setup(dir)
+	get_parent().add_child(bolt)
+	AudioManager.play("ember_shot", -4.0)
+
+
+func _update_launcher_hud() -> void:
+	if _weapon_lbl == null:
+		return
+
+	_weapon_lbl.text = "[T] LAUNCHER" if active_weapon == "launcher" else "[T] NAIL"
+
+	var bar_width : float = _heat * 100.0
+	_heat_fill.size.x = bar_width
+
+	# Colour shifts amber → red as heat rises
+	var r := lerpf(0.95, 1.0,  _heat)
+	var g := lerpf(0.50, 0.10, _heat)
+	_heat_fill.color = Color(r, g, 0.06, 1.0)
+
+	_heat_bg.visible       = (active_weapon == "launcher")
+	_heat_fill.visible     = (active_weapon == "launcher")
+	_overheat_lbl.visible  = _overheating
+
+
+func _set_active_weapon(weapon: String) -> void:
+	active_weapon = weapon
+	var launcher_on := (weapon == "launcher")
+	_launcher_barrel.visible = launcher_on
+	if _launcher_barrel.has_meta("band"):
+		(_launcher_barrel.get_meta("band") as ColorRect).visible = launcher_on
+	_update_launcher_hud()
 
 
 func _on_nail_area_entered(area: Area2D) -> void:
@@ -87,7 +255,10 @@ func _physics_process(delta: float) -> void:
 	_handle_dash(delta)
 	_handle_movement(delta)
 	_handle_jump()
-	_handle_attack()
+	if active_weapon == "launcher" and GameData.has_launcher():
+		_handle_launcher(delta)
+	else:
+		_handle_attack()
 	_handle_throw()
 	_update_visuals(delta)
 	move_and_slide()
@@ -260,6 +431,9 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.keycode == KEY_Y and event.pressed and not event.echo:
 		debug_invincible = not debug_invincible
 
+	if event.is_action_pressed("switch_weapon") and GameData.has_launcher():
+		_set_active_weapon("launcher" if active_weapon == "nail" else "nail")
+
 
 func take_damage(amount: int, knockback_dir: Vector2 = Vector2.ZERO) -> void:
 	if debug_invincible or i_frames_timer > 0.0 or is_dashing:
@@ -331,6 +505,10 @@ func respawn() -> void:
 	velocity        = Vector2.ZERO
 	i_frames_timer  = I_FRAMES
 	is_dashing      = false
+	_heat           = 0.0
+	_overheating    = false
+	_overheat_timer = 0.0
+	_fire_timer     = 0.0
 	visual.modulate.a = 1.0
 	set_physics_process(true)
 	health_changed.emit(health, GameData.get_max_health())

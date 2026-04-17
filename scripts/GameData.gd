@@ -84,11 +84,18 @@ const UPGRADES: Dictionary = {
 		"max_level": 1,
 		"costs": [1200],
 	},
+	"ember_launcher": {
+		"label": "Ember Launcher",
+		"desc":  "A pressurised steam cannon — hold attack to fire rapid ember bolts",
+		"max_level": 1,
+		"costs": [1000],
+	},
 }
 
 var upgrade_levels := {
 	"vitality": 0, "swiftness": 0, "edge": 0,
 	"reach": 0,    "double_jump": 0, "dash": 0,
+	"ember_launcher": 1,   # [DEV] remove before ship — grant via in-world pickup/merchant
 }
 
 
@@ -252,6 +259,9 @@ func has_double_jump() -> bool:
 
 func has_dash() -> bool:
 	return upgrade_levels.get("dash", 0) > 0
+
+func has_launcher() -> bool:
+	return upgrade_levels.get("ember_launcher", 0) > 0
 
 
 # ── Throwable methods ──────────────────────────────────────────────────────────

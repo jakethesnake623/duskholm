@@ -36,6 +36,10 @@ func _ready() -> void:
 	_add("purchase",    _gen_purchase(),    1)
 	_add("slam",        _gen_slam(),        1)
 	_add("rest",        _gen_rest(),        1)
+	_add("ember_shot",   _gen_ember_shot(),   4)   # polyphonic — rapid fire overlaps
+	_add("overheat",     _gen_overheat(),     1)
+	_add("furnace_roar", _gen_furnace_roar(), 1)   # FORGE-7 activation roar
+	_add("ember_glob",   _gen_ember_glob(),   3)   # polyphonic — rain fires multiple at once
 
 	GameData.rested.connect(func() -> void: play("rest"))
 	_load_settings()
@@ -306,6 +310,84 @@ func _gen_slam() -> AudioStreamWAV:
 		buf[i * 2]     = s16 & 0xFF
 		buf[i * 2 + 1] = (s16 >> 8) & 0xFF
 		ph += TAU * 38.0 / SAMPLE_RATE
+	return _make_wav(buf)
+
+
+func _gen_ember_shot() -> AudioStreamWAV:
+	# Sharp high-frequency ping (1800 → 900 Hz) with a brief steam-hiss tail
+	var n   : int   = int(SAMPLE_RATE * 0.07)
+	var buf := PackedByteArray(); buf.resize(n * 2)
+	var ph  : float = 0.0
+	for i in n:
+		var prog  : float = float(i) / float(n)
+		var freq  : float = 1800.0 - prog * 900.0
+		var tone  : float = sin(ph) * exp(-prog * 22.0) * 0.32
+		var hiss  : float = randf_range(-1.0, 1.0) * exp(-prog * 12.0) * 0.14
+		var s16   : int   = int(clampf((tone + hiss) * 32767.0, -32768.0, 32767.0))
+		buf[i * 2]     = s16 & 0xFF
+		buf[i * 2 + 1] = (s16 >> 8) & 0xFF
+		ph += TAU * freq / SAMPLE_RATE
+	return _make_wav(buf)
+
+
+func _gen_overheat() -> AudioStreamWAV:
+	# Steam pressure release: noise burst that rises then hisses out (~0.45 s)
+	var n   : int   = int(SAMPLE_RATE * 0.45)
+	var buf := PackedByteArray(); buf.resize(n * 2)
+	var ph  : float = 0.0
+	for i in n:
+		var prog  : float = float(i) / float(n)
+		# Envelope: sharp attack, long hiss tail
+		var env   : float = exp(-prog * 3.5) * (1.0 - exp(-prog * 60.0)) * 0.58
+		var freq  : float = 480.0 + sin(prog * 18.0) * 80.0   # slight wobble
+		var tone  : float = sin(ph) * env * 0.35
+		var noise : float = randf_range(-1.0, 1.0) * env * 0.65
+		var s16   : int   = int(clampf((tone + noise) * 32767.0, -32768.0, 32767.0))
+		buf[i * 2]     = s16 & 0xFF
+		buf[i * 2 + 1] = (s16 >> 8) & 0xFF
+		ph += TAU * freq / SAMPLE_RATE
+	return _make_wav(buf)
+
+
+func _gen_furnace_roar() -> AudioStreamWAV:
+	# Deep industrial rumble + hiss burst — FORGE-7 coming online
+	# Low sub-bass drone (55 Hz) with mid-range grind and noise decay
+	var n   : int   = int(SAMPLE_RATE * 1.10)
+	var buf := PackedByteArray(); buf.resize(n * 2)
+	var ph1 : float = 0.0
+	var ph2 : float = 0.0
+	for i in n:
+		var prog  : float = float(i) / float(n)
+		# Envelope: slow attack, hold, then hiss tail
+		var env   : float = (1.0 - exp(-prog * 8.0)) * exp(-prog * 1.8) * 0.62
+		var sub   : float = sin(ph1) * env * 0.55             # 55 Hz sub-bass
+		var grind : float = sin(ph2) * env * 0.28             # 165 Hz grind
+		var hiss  : float = randf_range(-1.0, 1.0) * env * 0.28
+		var samp  : float = sub + grind + hiss
+		var s16   : int   = int(clampf(samp * 32767.0, -32768.0, 32767.0))
+		buf[i * 2]     = s16 & 0xFF
+		buf[i * 2 + 1] = (s16 >> 8) & 0xFF
+		ph1 += TAU * 55.0  / SAMPLE_RATE
+		ph2 += TAU * 165.0 / SAMPLE_RATE
+	return _make_wav(buf)
+
+
+func _gen_ember_glob() -> AudioStreamWAV:
+	# Wet thump + short sizzle — molten projectile launch
+	var n   : int   = int(SAMPLE_RATE * 0.18)
+	var buf := PackedByteArray(); buf.resize(n * 2)
+	var ph  : float = 0.0
+	for i in n:
+		var prog  : float = float(i) / float(n)
+		# Thump: quick boom (80 Hz)
+		var thump : float = sin(ph) * exp(-prog * 28.0) * 0.50
+		# Sizzle tail
+		var sizzle: float = randf_range(-1.0, 1.0) * exp(-prog * 9.0) * (1.0 - exp(-prog * 40.0)) * 0.32
+		var samp  : float = thump + sizzle
+		var s16   : int   = int(clampf(samp * 32767.0, -32768.0, 32767.0))
+		buf[i * 2]     = s16 & 0xFF
+		buf[i * 2 + 1] = (s16 >> 8) & 0xFF
+		ph += TAU * 80.0 / SAMPLE_RATE
 	return _make_wav(buf)
 
 

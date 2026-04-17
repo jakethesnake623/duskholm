@@ -12,6 +12,9 @@ const SOUL_ORB_SCENE = preload("res://scenes/SoulOrb.tscn")
 @onready var boss_gate     : StaticBody2D    = $BossGate
 @onready var scaffold      : Node2D          = $BossScaffold
 @onready var minimap       : CanvasLayer     = $MiniMap
+@onready var boss2         : CharacterBody2D = $Boss2
+@onready var boss2_hpbar   : CanvasLayer     = $BossHealthBar2
+@onready var furnace_gate  : StaticBody2D    = $FurnaceGate
 
 var camera    : Camera2D
 var death_orb : Node = null
@@ -51,6 +54,11 @@ func _ready() -> void:
 	boss.boss_died.connect(_on_boss_died)
 	GameData.rested.connect(boss_hpbar.deactivate)
 
+	boss2.health_changed.connect(boss2_hpbar.on_health_changed)
+	boss2.boss_died.connect(boss2_hpbar.on_boss_died)
+	boss2.boss_died.connect(_on_boss2_died)
+	GameData.rested.connect(boss2_hpbar.deactivate)
+
 
 # ── Upgrade purchased ──────────────────────────────────────────────────────────
 
@@ -84,7 +92,10 @@ func _process(_delta: float) -> void:
 func _update_camera_room() -> void:
 	var pos := player.global_position
 	var rid : String
-	if pos.y >= 1440 and pos.x >= 1280:
+	if pos.y >= 1440 and pos.x >= 2560:
+		_set_room(2560, 3840, 1440, 2160)
+		rid = "room8"
+	elif pos.y >= 1440 and pos.x >= 1280:
 		_set_room(1280, 2560, 1440, 2160)
 		rid = "room5"
 	elif pos.y >= 1440:
@@ -115,6 +126,7 @@ func _update_camera_room() -> void:
 			"room2": "2 — The Spire",       "room3": "3 — The Vault",
 			"room4": "4 — The Sunken Hall", "room5": "5 — The Beyond",
 			"room6": "6 — The Hollow",      "room7": "7 — The Ossuary",
+			"room8": "8 — The Foundry",
 		}
 		_room_label.text = "[DEV] Room " + NAMES.get(rid, rid)
 
@@ -156,8 +168,13 @@ func _on_boss_died() -> void:
 	_shake_camera(1.4, 7.0)
 	await get_tree().create_timer(0.9).timeout
 	boss_gate.crumble()
+	furnace_gate.crumble()
 	await get_tree().create_timer(0.6).timeout
 	_reveal_scaffold()
+
+
+func _on_boss2_died() -> void:
+	_shake_camera(1.8, 9.0)
 
 
 func _reveal_scaffold() -> void:
