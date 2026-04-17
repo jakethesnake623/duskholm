@@ -3,8 +3,10 @@ extends Node2D
 ## Export one or more inner-voice lines. On the very first interaction they
 ## play in sequence before the well menu opens. Leave empty to skip.
 @export var inner_voice_lines : PackedStringArray = PackedStringArray()
-## The room this well belongs to. Set in the scene; used to reveal the room on the minimap.
+## The room this well belongs to. Used to reveal the room on the minimap.
 @export var room_id           : String            = ""
+## Display name shown in the Ember Drift destination list.
+@export var well_name         : String            = "Unknown Vessel"
 
 var player_nearby := false
 var player_ref    : CharacterBody2D = null
@@ -22,9 +24,11 @@ var _typing         := false
 var _type_elapsed   := 0.0
 var _type_full_text := ""
 
-var _glow_rect  : ColorRect   = null
-var _well_menu  : CanvasLayer = null
-var _status_lbl : Label       = null
+var _glow_rect   : ColorRect   = null
+var _well_menu   : CanvasLayer = null
+var _status_lbl  : Label       = null
+var _drift_btn   : Button      = null
+var _drift_layer : CanvasLayer = null
 var _voice_layer : CanvasLayer = null
 var _voice_text  : Label       = null
 var _voice_hint  : Label       = null
@@ -90,7 +94,7 @@ func _build_well_menu() -> void:
 
 	var panel := ColorRect.new()
 	panel.position = Vector2(440.0, 240.0)
-	panel.size     = Vector2(400.0, 250.0)
+	panel.size     = Vector2(400.0, 295.0)
 	panel.color    = Color(0.06, 0.04, 0.09, 0.96)
 	_well_menu.add_child(panel)
 
@@ -109,23 +113,32 @@ func _build_well_menu() -> void:
 	divider.color    = Color(0.35, 0.22, 0.50, 0.6)
 	_well_menu.add_child(divider)
 
-	var ponder    := _well_btn("Ponder",    Vector2(540.0, 318.0))
-	var offerings := _well_btn("Offerings", Vector2(540.0, 368.0))
-	var depart    := _well_btn("Depart",    Vector2(540.0, 418.0))
+	var ponder    := _well_btn("Ponder",      Vector2(540.0, 318.0))
+	var offerings := _well_btn("Offerings",   Vector2(540.0, 362.0))
+	var drift_btn := _well_btn("Ember Drift", Vector2(540.0, 406.0))
+	var depart    := _well_btn("Depart",      Vector2(540.0, 450.0))
 
 	ponder.pressed.connect(_do_ponder)
 	offerings.pressed.connect(_do_offerings)
+	drift_btn.pressed.connect(_do_drift)
 	depart.pressed.connect(_close_menu)
+
+	# Drift is amber-tinted to stand out as the travel option
+	drift_btn.add_theme_color_override("font_color",         Color(0.82, 0.58, 0.18, 1.0))
+	drift_btn.add_theme_color_override("font_hover_color",   Color(1.00, 0.78, 0.35, 1.0))
+	drift_btn.add_theme_color_override("font_pressed_color", Color(0.55, 0.38, 0.10, 1.0))
 
 	_well_menu.add_child(ponder)
 	_well_menu.add_child(offerings)
+	_well_menu.add_child(drift_btn)
 	_well_menu.add_child(depart)
+	_drift_btn = drift_btn
 
 	_status_lbl = Label.new()
 	_status_lbl.add_theme_font_size_override("font_size", 13)
 	_status_lbl.add_theme_color_override("font_color", Color(0.62, 0.48, 0.88, 0.85))
 	_status_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_status_lbl.position = Vector2(440.0, 458.0)
+	_status_lbl.position = Vector2(440.0, 502.0)
 	_status_lbl.size     = Vector2(400.0, 22.0)
 	_status_lbl.visible  = false
 	_well_menu.add_child(_status_lbl)
@@ -281,6 +294,9 @@ func _open_menu() -> void:
 	_menu_open         = true
 	_well_menu.visible = true
 	get_tree().paused  = true
+	# Show Drift only when at least one other well has been pondered at
+	if _drift_btn:
+		_drift_btn.visible = GameData.get_other_wells(well_name).size() > 0
 
 
 func _close_menu() -> void:
@@ -298,9 +314,138 @@ func _do_ponder() -> void:
 	GameData.spawn_position = global_position + Vector2(0, -8)
 	player_ref.rest(global_position)
 	GameData.discover_room(room_id)
+	GameData.register_well(well_name, global_position)
 	GameData.save()
 	GameData.rested.emit()
+	# Refresh Drift button visibility now that this well is registered
+	if _drift_btn:
+		_drift_btn.visible = GameData.get_other_wells(well_name).size() > 0
 	_show_status("...the well remembers...")
+
+
+func _do_drift() -> void:
+	var destinations := GameData.get_other_wells(well_name)
+	if destinations.is_empty():
+		_show_status("...no other wells have been awakened...")
+		return
+	_well_menu.visible = false
+	_show_drift_menu(destinations)
+
+
+func _show_drift_menu(destinations: Array) -> void:
+	_drift_layer = CanvasLayer.new()
+	_drift_layer.layer        = 9
+	_drift_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(_drift_layer)
+
+	var bg := ColorRect.new()
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.color = Color(0.0, 0.0, 0.0, 0.65)
+	_drift_layer.add_child(bg)
+
+	var panel_h := 130.0 + destinations.size() * 46.0
+	var panel := ColorRect.new()
+	panel.position = Vector2(440.0, 240.0)
+	panel.size     = Vector2(400.0, panel_h)
+	panel.color    = Color(0.07, 0.04, 0.06, 0.96)
+	_drift_layer.add_child(panel)
+
+	var title := Label.new()
+	title.text = "EMBER DRIFT"
+	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_color_override("font_color", Color(0.88, 0.52, 0.12, 1.0))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.position = Vector2(440.0, 256.0)
+	title.size     = Vector2(400.0, 42.0)
+	_drift_layer.add_child(title)
+
+	var sub := Label.new()
+	sub.text = "dissolve into the ember stream"
+	sub.add_theme_font_size_override("font_size", 11)
+	sub.add_theme_color_override("font_color", Color(0.58, 0.34, 0.10, 0.80))
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.position = Vector2(440.0, 290.0)
+	sub.size     = Vector2(400.0, 18.0)
+	_drift_layer.add_child(sub)
+
+	var divider := ColorRect.new()
+	divider.position = Vector2(490.0, 312.0)
+	divider.size     = Vector2(300.0, 1.0)
+	divider.color    = Color(0.60, 0.30, 0.08, 0.55)
+	_drift_layer.add_child(divider)
+
+	for i in destinations.size():
+		var w   : Dictionary = destinations[i]
+		var btn := Button.new()
+		btn.text     = w["name"]
+		btn.position = Vector2(540.0, 326.0 + i * 46.0)
+		btn.size     = Vector2(200.0, 36.0)
+		btn.flat     = true
+		btn.add_theme_font_size_override("font_size", 18)
+		btn.add_theme_color_override("font_color",         Color(0.82, 0.72, 0.55, 1.0))
+		btn.add_theme_color_override("font_hover_color",   Color(1.00, 0.88, 0.60, 1.0))
+		btn.add_theme_color_override("font_pressed_color", Color(0.52, 0.40, 0.24, 1.0))
+		var dest := Vector2(w["pos_x"], w["pos_y"])
+		btn.pressed.connect(_drift_to.bind(dest))
+		_drift_layer.add_child(btn)
+
+	var back_y := 334.0 + destinations.size() * 46.0
+	var back   := _well_btn("Back", Vector2(540.0, back_y))
+	back.pressed.connect(_cancel_drift)
+	_drift_layer.add_child(back)
+
+
+func _cancel_drift() -> void:
+	if _drift_layer:
+		_drift_layer.queue_free()
+		_drift_layer = null
+	_well_menu.visible = true
+
+
+func _drift_to(dest_pos: Vector2) -> void:
+	if player_ref == null:
+		_cancel_drift()
+		return
+
+	if _drift_layer:
+		_drift_layer.queue_free()
+		_drift_layer = null
+
+	# Ember-coloured fade overlay — added to the root so it covers everything.
+	# process_mode ALWAYS so it runs while the tree is paused.
+	var cl := CanvasLayer.new()
+	cl.layer        = 20
+	cl.process_mode = Node.PROCESS_MODE_ALWAYS
+	get_tree().root.add_child(cl)
+
+	var overlay := ColorRect.new()
+	overlay.position     = Vector2.ZERO
+	overlay.size         = Vector2(1280.0, 720.0)
+	overlay.color        = Color(0.72, 0.30, 0.04, 0.0)
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cl.add_child(overlay)
+
+	# Fade to ember-orange
+	var tw := create_tween()
+	tw.tween_property(overlay, "color:a", 1.0, 0.40)
+	await tw.finished
+
+	# Teleport
+	player_ref.global_position = dest_pos + Vector2(0.0, -8.0)
+	player_ref.velocity        = Vector2.ZERO
+
+	# Brief hold at full coverage so the cut isn't jarring
+	await get_tree().create_timer(0.18, true).timeout
+
+	# Fade back in
+	var tw2 := create_tween()
+	tw2.tween_property(overlay, "color:a", 0.0, 0.50)
+	await tw2.finished
+
+	cl.queue_free()
+	_menu_open        = false
+	_well_menu.visible = false
+	get_tree().paused  = false
 
 
 func _do_offerings() -> void:

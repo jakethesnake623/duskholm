@@ -11,6 +11,19 @@ signal room_discovered(room_id: String)
 var embers           := 0
 var spawn_position   := Vector2(-980.0, 620.0)
 var discovered_rooms : Array = []
+var pondered_wells   : Array = []   # [{name, pos_x, pos_y}, …] — wells the player has rested at
+
+# ── Corruption ─────────────────────────────────────────────────────────────────
+## Embers are the remains of the dead. Hoarding them lets The Hollowing in.
+## At CORRUPTION_MAX embers the player is fully corrupted: visually consumed
+## by void-darkness and enemies reach peak aggression.
+const CORRUPTION_MAX := 1500
+
+func get_corruption_factor() -> float:
+	## Continuous 0.0 (clean) → 1.0 (fully corrupted).
+	if embers <= 0:
+		return 0.0
+	return minf(float(embers) / float(CORRUPTION_MAX), 1.0)
 
 # ── Throwable inventory ────────────────────────────────────────────────────────
 
@@ -87,6 +100,21 @@ func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 
 
+func register_well(wname: String, pos: Vector2) -> void:
+	for w in pondered_wells:
+		if w["name"] == wname:
+			return   # already registered
+	pondered_wells.append({"name": wname, "pos_x": pos.x, "pos_y": pos.y})
+
+
+func get_other_wells(current_name: String) -> Array:
+	var result := []
+	for w in pondered_wells:
+		if w["name"] != current_name:
+			result.append(w)
+	return result
+
+
 func discover_room(room_id: String) -> void:
 	if room_id.is_empty() or discovered_rooms.has(room_id):
 		return
@@ -103,6 +131,7 @@ func save() -> void:
 		"throwable_counts": throwable_counts.duplicate(),
 		"active_throwable": active_throwable,
 		"discovered_rooms": discovered_rooms.duplicate(),
+		"pondered_wells":   pondered_wells.duplicate(),
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -129,6 +158,7 @@ func load_save() -> bool:
 		throwable_counts[key] = int(tcounts.get(key, 0))
 	active_throwable  = data.get("active_throwable", "flask")
 	discovered_rooms  = data.get("discovered_rooms", [])
+	pondered_wells    = data.get("pondered_wells",   [])
 	embers_changed.emit(embers)
 	throwables_changed.emit()
 	return true
@@ -145,6 +175,7 @@ func reset() -> void:
 	embers           = 0
 	spawn_position   = Vector2(-980.0, 620.0)
 	discovered_rooms = []
+	pondered_wells   = []
 	for key in upgrade_levels:
 		upgrade_levels[key] = 0
 	for key in throwable_counts:

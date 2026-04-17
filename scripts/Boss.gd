@@ -43,6 +43,7 @@ var charge_cd            := 0.0
 var slam_ready           := true
 var _phase2_triggered    := false
 var _double_charge_avail := true
+var _permanently_dead    := false
 
 var player_ref       : CharacterBody2D = null
 var _spawn_position  : Vector2
@@ -438,6 +439,7 @@ func _die() -> void:
 	velocity           = Vector2.ZERO
 	set_physics_process(false)
 
+	_permanently_dead = true
 	GameData.gain_embers(EMBERS_DROP)
 	AudioManager.play("enemy_die")
 	boss_died.emit()
@@ -450,7 +452,7 @@ func _die() -> void:
 
 
 func _reset() -> void:
-	if state != State.DEAD:
+	if state != State.DEAD or _permanently_dead:
 		return
 
 	if _death_tween:

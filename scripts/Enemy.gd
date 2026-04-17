@@ -203,7 +203,8 @@ func _apply_gravity(delta: float) -> void:
 func _state_patrol(_delta: float) -> void:
 	if is_on_wall() or (is_on_floor() and not _has_floor_ahead()):
 		patrol_dir *= -1
-	velocity.x = patrol_dir * move_speed
+	var cf := GameData.get_corruption_factor()
+	velocity.x = patrol_dir * move_speed * (1.0 + cf * 0.20)
 
 
 func _state_chase(_delta: float) -> void:
@@ -218,7 +219,8 @@ func _state_chase(_delta: float) -> void:
 		_start_attack()
 		return
 
-	velocity.x = sign(diff.x) * move_speed
+	var cf := GameData.get_corruption_factor()
+	velocity.x = sign(diff.x) * move_speed * (1.0 + cf * 0.35)
 
 	# Jump to reach the player on a higher platform
 	if is_on_floor() and _jump_cd <= 0.0:
@@ -234,7 +236,8 @@ func _state_chase(_delta: float) -> void:
 func _start_attack() -> void:
 	state        = State.ATTACK
 	attack_phase = 0
-	state_timer  = WINDUP_TIME
+	var cf       := GameData.get_corruption_factor()
+	state_timer  = WINDUP_TIME * (1.0 - cf * 0.25)   # up to 25% faster windup
 	velocity.x   = 0.0
 
 
@@ -253,7 +256,8 @@ func _state_attack(delta: float) -> void:
 			if state_timer <= 0.0:
 				atk_box.monitoring = false
 				atk_col.disabled   = true
-				attack_cd = ATTACK_COOLDOWN
+				var cf    := GameData.get_corruption_factor()
+				attack_cd  = ATTACK_COOLDOWN * (1.0 - cf * 0.40)  # up to 40% shorter cooldown
 				state = State.CHASE if is_instance_valid(player_ref) else State.PATROL
 
 

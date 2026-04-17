@@ -84,6 +84,22 @@ func _build_panel() -> void:
 	# Panel outer border
 	_border_rect(PANEL_POS, PANEL_SIZE, Color(0.35, 0.28, 0.50, 0.80), 1.0)
 
+	# [DEV] Room numbers — remove before ship
+	const ROOM_NUMBERS := {
+		"room0": "0", "room1": "1", "room2": "2", "room3": "3",
+		"room4": "4", "room5": "5", "room6": "6", "room7": "7",
+	}
+	for rid in ROOM_DATA:
+		var mrect := _world_to_map(ROOM_DATA[rid][0], map_area)
+		var lbl   := Label.new()
+		lbl.text = ROOM_NUMBERS[rid]
+		lbl.add_theme_font_size_override("font_size", 7)
+		lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 0.4, 0.70))
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.position = mrect.position + Vector2(0.0, mrect.size.y * 0.5 - 5.0)
+		lbl.size     = Vector2(mrect.size.x, 10.0)
+		add_child(lbl)
+
 	# Player dot — rendered last so it's always on top
 	_player_dot = ColorRect.new()
 	_player_dot.size  = Vector2(4.0, 4.0)

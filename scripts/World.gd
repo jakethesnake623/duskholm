@@ -16,6 +16,9 @@ const SOUL_ORB_SCENE = preload("res://scenes/SoulOrb.tscn")
 var camera    : Camera2D
 var death_orb : Node = null
 
+# ── Dev: room label ────────────────────────────────────────────────────────────
+var _room_label : Label = null
+
 
 func _ready() -> void:
 	camera = player.get_node("Camera2D")
@@ -26,6 +29,7 @@ func _ready() -> void:
 	_update_camera_room()
 
 	minimap.setup(player)
+	_build_room_label()
 	hud.setup(GameData.get_max_health())
 	hud.on_embers_changed(GameData.embers)
 	hud.on_throwables_changed()
@@ -57,6 +61,18 @@ func _on_upgrade_purchased(key: String) -> void:
 	if key == "vitality":
 		player.health = GameData.get_max_health()
 	hud.on_health_changed(player.health, GameData.get_max_health())
+
+
+func _build_room_label() -> void:
+	var cl := CanvasLayer.new()
+	cl.layer        = 4
+	cl.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(cl)
+	_room_label = Label.new()
+	_room_label.add_theme_font_size_override("font_size", 11)
+	_room_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.4, 0.75))
+	_room_label.position = Vector2(8.0, 8.0)
+	cl.add_child(_room_label)
 
 
 # ── Camera room tracking ───────────────────────────────────────────────────────
@@ -93,6 +109,14 @@ func _update_camera_room() -> void:
 		_set_room(0, 1280, 0, 720)
 		rid = "room1"
 	GameData.discover_room(rid)
+	if _room_label:
+		const NAMES := {
+			"room0": "0 — The Cradle",      "room1": "1 — The Entrance",
+			"room2": "2 — The Spire",       "room3": "3 — The Vault",
+			"room4": "4 — The Sunken Hall", "room5": "5 — The Beyond",
+			"room6": "6 — The Hollow",      "room7": "7 — The Ossuary",
+		}
+		_room_label.text = "[DEV] Room " + NAMES.get(rid, rid)
 
 
 func _set_room(left: int, right: int, top: int, bottom: int) -> void:

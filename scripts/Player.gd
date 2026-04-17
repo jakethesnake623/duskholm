@@ -48,13 +48,15 @@ var facing_right      := true
 var is_dashing    := false
 var dash_timer    := 0.0
 var dash_cd_timer := 0.0
+var _on_zipline   := false
 
 # --- Procedural animation ---
 const LAND_SQUASH_TIME := 0.18
 var _was_on_floor := true
 var _land_timer   := 0.0
 var _walk_phase   := 0.0
-var _slash_angle  := -1.20   # radians; drives nail arc from up-forward to down-forward
+var _slash_angle  := -1.20   # current rotation of the nail hitbox (drives the arc)
+var _slash_target :=  1.20   # target rotation — move_toward converges here each frame
 
 @onready var visual        : Node2D           = $Visual
 @onready var nail_hitbox   : Area2D           = $NailHitbox
@@ -119,6 +121,7 @@ func _tick_timers(delta: float) -> void:
 	if is_attacking and attack_timer < ATTACK_COOLDOWN - ATTACK_DURATION:
 		is_attacking = false
 		nail_hitbox.monitoring  = false
+		nail_hitbox.rotation    = 0.0
 		nail_collision.disabled = true
 		nail_visual.visible     = false
 		nail_visual.rotation    = 0.0
@@ -217,22 +220,38 @@ func _swing_nail() -> void:
 	is_attacking = true
 	attack_timer = ATTACK_COOLDOWN
 	AudioManager.play("swing")
-	_slash_angle = -1.20   # arc start: blade pointing up-forward
 
 	var range  : float = GameData.get_nail_range()
-	var facing : float = 1.0 if facing_right else -1.0
 
-	# Hitbox sits in front of the player and is taller than wide to cover the swept arc.
-	nail_hitbox.position.x = facing * (range * 0.5 + 6.0)
-	nail_hitbox.position.y = 0.0
+	# The arc sweeps from up-forward to down-forward (a downward slash).
+	# For facing left the sweep mirrors: upper-left → lower-left.
+	# Both arcs span 2.4 radians and the hitbox rotates around the player's centre.
+	if facing_right:
+		_slash_angle  = -1.20
+		_slash_target =  1.20
+	else:
+		_slash_angle  =  PI - 1.20   # upper-left  (≈ 1.94 rad)
+		_slash_target =  PI + 1.20   # lower-left  (≈ 4.34 rad)
+
+	# Hitbox lives at the player's origin and rotates as a whole.
+	# The blade extends in local +X so the rotation sweeps it through the arc.
+	nail_hitbox.position = Vector2.ZERO
+	nail_hitbox.rotation = _slash_angle
+
 	var col_shape := nail_collision.shape as RectangleShape2D
-	col_shape.size.x = range * 0.60
-	col_shape.size.y = 56.0
+	col_shape.size             = Vector2(range, 10.0)
+	nail_collision.position    = Vector2(range * 0.5 + 8.0, 0.0)
+
+	# Visual: a strip starting 8 px from the player centre, extending to range.
+	# No individual rotation — the parent hitbox handles it.
+	nail_visual.position      = Vector2(8.0, -3.5)
+	nail_visual.size          = Vector2(range, 7.0)
+	nail_visual.pivot_offset  = Vector2(0.0, 3.5)
+	nail_visual.rotation      = 0.0
 
 	nail_hitbox.monitoring  = true
 	nail_collision.disabled = false
 	nail_visual.visible     = true
-	nail_visual.rotation    = _slash_angle * facing
 
 
 # ── Health ─────────────────────────────────────────────────────────────────────
@@ -285,6 +304,25 @@ func _die() -> void:
 	set_physics_process(false)
 	visual.modulate.a = 0.0
 	# World listens to `died` and shows the death screen; respawn() is called from there.
+
+
+func start_zip(end_world_pos: Vector2, duration: float) -> void:
+	if _on_zipline:
+		return
+	_on_zipline    = true
+	velocity       = Vector2.ZERO
+	i_frames_timer = duration + 0.3   # invincible for the full ride
+	set_physics_process(false)
+	var tw := create_tween()
+	tw.tween_property(self, "global_position", end_world_pos, duration) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_callback(_end_zip)
+
+
+func _end_zip() -> void:
+	_on_zipline = false
+	velocity    = Vector2.ZERO
+	set_physics_process(true)
 
 
 func respawn() -> void:
@@ -357,10 +395,24 @@ func _update_visuals(delta: float) -> void:
 		visual.modulate.g = 1.0
 		visual.modulate.b = 1.0
 	else:
-		visual.modulate = Color.WHITE
+		var cf := GameData.get_corruption_factor()
+		if cf <= 0.0:
+			visual.modulate = Color.WHITE
+		else:
+			# Shift from white toward void-purple-black as embers accumulate.
+			# At full corruption the player looks like a hollow silhouette.
+			var t := Time.get_ticks_msec() * 0.006
+			# Heavy corruption (cf ≥ 0.75) adds a slow dark pulse
+			var pulse := 0.0
+			if cf >= 0.75:
+				pulse = (0.5 + 0.5 * sin(t)) * ((cf - 0.75) / 0.25) * 0.18
+			visual.modulate = Color(
+				lerpf(1.0, 0.38 - pulse, cf),   # red   — drains away
+				lerpf(1.0, 0.16,         cf),   # green — drains fastest
+				lerpf(1.0, 0.50 + pulse, cf)    # blue  — shifts toward void-purple
+			)
 
 	# ── Nail slash arc ─────────────────────────────────────────────────────────
 	if is_attacking:
-		var facing : float = 1.0 if facing_right else -1.0
-		_slash_angle         = move_toward(_slash_angle, 1.20, 16.0 * delta)
-		nail_visual.rotation = _slash_angle * facing
+		_slash_angle         = move_toward(_slash_angle, _slash_target, 16.0 * delta)
+		nail_hitbox.rotation = _slash_angle
