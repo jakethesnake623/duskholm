@@ -92,7 +92,16 @@ func _process(_delta: float) -> void:
 func _update_camera_room() -> void:
 	var pos := player.global_position
 	var rid : String
-	if pos.y >= 1440 and pos.x >= 2560:
+	if pos.y >= 2160 and pos.x < 0:
+		_set_room(-1280, 0, 2160, 2880)
+		rid = "room16"
+	elif pos.y >= 2160 and pos.x >= 1280:
+		_set_room(1280, 2560, 2160, 2880)
+		rid = "room18"
+	elif pos.y >= 2160:
+		_set_room(0, 1280, 2160, 2880)
+		rid = "room17"
+	elif pos.y >= 1440 and pos.x >= 2560:
 		_set_room(2560, 3840, 1440, 2160)
 		rid = "room8"
 	elif pos.y >= 1440 and pos.x >= 1280:
@@ -122,11 +131,14 @@ func _update_camera_room() -> void:
 	GameData.discover_room(rid)
 	if _room_label:
 		const NAMES := {
-			"room0": "0 — The Cradle",      "room1": "1 — The Entrance",
-			"room2": "2 — The Spire",       "room3": "3 — The Vault",
-			"room4": "4 — The Sunken Hall", "room5": "5 — The Beyond",
-			"room6": "6 — The Hollow",      "room7": "7 — The Ossuary",
+			"room0": "0 — The Cradle",        "room1": "1 — The Entrance",
+			"room2": "2 — The Spire",         "room3": "3 — The Vault",
+			"room4": "4 — The Sunken Hall",   "room5": "5 — The Beyond",
+			"room6": "6 — The Hollow",        "room7": "7 — The Ossuary",
 			"room8": "8 — The Foundry",
+			"room16": "16 — The Drowned Halls",
+			"room17": "17 — The Ashen Corridor",
+			"room18": "18 — The Deep Ironworks",
 		}
 		_room_label.text = "[DEV] Room " + NAMES.get(rid, rid)
 

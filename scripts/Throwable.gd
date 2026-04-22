@@ -77,7 +77,7 @@ func _on_area_entered(area: Area2D) -> void:
 			_flask_explode()
 		else:
 			var parent := area.get_parent()
-			if parent.has_method("_take_damage"):
+			if parent.has_method("_take_damage") and not (parent as Node).is_in_group("ember_immune"):
 				parent._take_damage(_damage)
 			_impact_shard()
 
@@ -102,12 +102,14 @@ func _flask_explode() -> void:
 	var hits : Array[Dictionary] = space.intersect_shape(params)
 
 	# Damage each enemy once (guard against multiple Hurtbox shapes per enemy)
+	# Skip any entity in the "ember_immune" group (e.g. FORGE-7).
 	var damaged : Array[Node] = []
 	for hit in hits:
 		var collider : Object = hit.get("collider")
 		if collider is Area2D and (collider as Area2D).name == "Hurtbox":
 			var parent : Node = (collider as Node).get_parent()
-			if parent not in damaged and parent.has_method("_take_damage"):
+			if parent not in damaged and parent.has_method("_take_damage") \
+					and not (parent as Node).is_in_group("ember_immune"):
 				damaged.append(parent)
 				parent._take_damage(_damage)
 

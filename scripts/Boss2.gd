@@ -33,16 +33,28 @@ const CHARGE_DMG_P1   = 3
 const CHARGE_DMG_P2   = 4
 
 # Ember Shot
-const SHOT_WINDUP_T   = 0.70
-const SHOT_COOLDOWN   = 3.5
-const GLOB_SPEED      = 300.0
+const SHOT_WINDUP_T      = 0.70
+const SHOT_COOLDOWN      = 3.5
+const GLOB_SPEED         = 300.0
+const SHOT_COUNT_P1      = 2      # globs per shot in phase 1
+const SHOT_COUNT_P2      = 4      # globs per shot in phase 2
 
-# Ember Rain (phase 2)
-const RAIN_WINDUP_T   = 1.00
-const RAIN_COUNT      = 5
-const RAIN_COOLDOWN   = 5.0
+# Ember Rain
+const RAIN_WINDUP_T      = 1.00
+const RAIN_COUNT_P1      = 5      # globs per rain in phase 1
+const RAIN_COUNT_P2      = 7      # globs per rain in phase 2
+const RAIN_COOLDOWN_P1   = 5.0
+const RAIN_COOLDOWN_P2   = 3.0    # rains far more often in phase 2
 
-# Slam (phase 2)
+# Phase 2 burst (fired on P2 transition — ring of globs in all directions)
+const BURST_COUNT        = 8
+const BURST_SPEED        = 260.0
+
+# Slam after-burst (P2 only — forward fan of globs fired after landing)
+const SLAM_ARC_COUNT     = 3
+const SLAM_ARC_SPEED     = 320.0
+
+# Slam
 const SLAM_RISE_VEL   = -500.0
 const SLAM_FALL_VEL   = 850.0
 const SLAM_RADIUS     = 300.0
@@ -53,7 +65,8 @@ const SLAM_WAVE_DMG   = 2
 const RECOIL_TIME     = 0.80
 const LORE_END_PAUSE  = 1.40
 const PHASE2_PAUSE    = 2.50
-const IDLE_DUR        = 0.65
+const IDLE_DUR_P1     = 0.65
+const IDLE_DUR_P2     = 0.35     # much snappier in phase 2
 const WALK_MAX_DUR    = 4.0
 
 # ── Lore ─────────────────────────────────────────────────────────────────────────
@@ -95,6 +108,7 @@ var slam_ready          := true
 var _phase2_triggered   := false
 var _pending_action     := ""   # "charge" | "shot" | "rain" | "slam"
 var _permanently_dead   := false
+var _p2_burst_done      := false
 
 var player_ref      : CharacterBody2D = null
 var _spawn_position : Vector2
@@ -119,6 +133,7 @@ var _lore_end_timer  := 0.0
 
 
 func _ready() -> void:
+	add_to_group("ember_immune")   # immune to ember flask explosions
 	_spawn_position = global_position
 	collision_layer = 2
 	collision_mask  = 1
@@ -280,7 +295,7 @@ func _state_lore(delta: float) -> void:
 			_lore_layer.visible = false
 			AudioManager.play("furnace_roar")
 			state       = State.IDLE
-			state_timer = IDLE_DUR
+			state_timer = IDLE_DUR_P1
 		return
 
 	var entry      : Array  = LORE_LINES[_lore_line_idx]
@@ -332,20 +347,22 @@ func _decide_action() -> void:
 		return
 
 	var diff := player_ref.global_position - global_position
-	var dist := abs(diff.x)
-	var speed_mult := 1.0 if phase == 1 else 1.30
+	var dist := absf(diff.x)
+	var speed_mult: float = 1.0 if phase == 1 else 1.40
+	var idle_dur  : float = IDLE_DUR_P1 if phase == 1 else IDLE_DUR_P2
 
 	# Phase 2 priority: slam if ready and player close
 	if phase == 2 and slam_ready and dist < 420.0:
 		slam_ready = false
 		_pending_action = "slam"
 		state       = State.WINDUP
-		state_timer = CHARGE_WINDUP_T * speed_mult
+		state_timer = CHARGE_WINDUP_T / speed_mult
 		velocity.x  = 0.0
 		return
 
-	# Ember rain (phase 2 only)
-	if phase == 2 and rain_cd <= 0.0 and dist > 200.0:
+	# Ember rain — P2 fires eagerly at any range; P1 only fires at a distance
+	var rain_min_dist : float = 80.0 if phase == 2 else 200.0
+	if phase == 2 and rain_cd <= 0.0 and dist > rain_min_dist:
 		_pending_action = "rain"
 		state       = State.WINDUP
 		state_timer = RAIN_WINDUP_T / speed_mult
@@ -376,7 +393,7 @@ func _decide_action() -> void:
 func _state_walk() -> void:
 	if not is_instance_valid(player_ref):
 		state       = State.IDLE
-		state_timer = IDLE_DUR
+		state_timer = IDLE_DUR_P1 if phase == 1 else IDLE_DUR_P2
 		return
 
 	var diff := player_ref.global_position - global_position
@@ -384,7 +401,7 @@ func _state_walk() -> void:
 
 	if state_timer <= 0.0:
 		state       = State.IDLE
-		state_timer = IDLE_DUR
+		state_timer = IDLE_DUR_P1 if phase == 1 else IDLE_DUR_P2
 
 
 func _state_windup(delta: float) -> void:
@@ -421,11 +438,11 @@ func _state_charge() -> void:
 
 
 func _state_ember_shot() -> void:
-	var count := 3 if phase == 2 else 2
+	var count: int = SHOT_COUNT_P2 if phase == 2 else SHOT_COUNT_P1
 	for i in count:
 		_fire_glob(i, count)
-	shot_cd    = SHOT_COOLDOWN
-	state      = State.RECOIL
+	shot_cd     = SHOT_COOLDOWN
+	state       = State.RECOIL
 	state_timer = RECOIL_TIME
 
 
@@ -447,19 +464,20 @@ func _fire_glob(idx: int, total: int) -> void:
 
 
 func _state_ember_rain() -> void:
-	# Fire RAIN_COUNT globs in a wide fan upward — they fall back down as hazards
-	for i in RAIN_COUNT:
-		var glob := EMBER_GLOB_SCENE.instantiate() as Area2D
-		var t    : float = float(i) / float(RAIN_COUNT - 1)   # 0.0 → 1.0
-		var angle: float = lerpf(-1.10, -0.08, t)             # fan: upper-left → upper-right
-		var speed: float = lerpf(340.0, 420.0, abs(t - 0.5) * 2.0)
-		var vel  : Vector2 = Vector2(cos(angle), sin(angle)) * speed
+	# Fire a wide fan of globs upward — they arc back down as falling hazards
+	var count: int = RAIN_COUNT_P2 if phase == 2 else RAIN_COUNT_P1
+	for i in count:
+		var glob  := EMBER_GLOB_SCENE.instantiate() as Area2D
+		var t     : float  = float(i) / float(count - 1)          # 0.0 → 1.0
+		var angle : float  = lerpf(-1.20, -0.00, t)               # fan: upper-left → straight-up
+		var speed : float  = lerpf(340.0, 440.0, absf(t - 0.5) * 2.0)
+		var vel   : Vector2 = Vector2(cos(angle), sin(angle)) * speed
 		glob.global_position = global_position + Vector2(0.0, -60.0)
 		glob.setup(vel)
 		get_parent().add_child(glob)
 		AudioManager.play("ember_glob")
-	rain_cd    = RAIN_COOLDOWN
-	state      = State.RECOIL
+	rain_cd     = RAIN_COOLDOWN_P2 if phase == 2 else RAIN_COOLDOWN_P1
+	state       = State.RECOIL
 	state_timer = RECOIL_TIME * 1.3
 
 
@@ -487,12 +505,28 @@ func _on_slam_land() -> void:
 	slam_ready = true
 	if not is_instance_valid(player_ref):
 		return
-	var dist := abs(player_ref.global_position.x - global_position.x)
+	var dist := absf(player_ref.global_position.x - global_position.x)
 	if dist < SLAM_RADIUS and player_ref.is_on_floor() and player_ref.has_method("take_damage"):
 		var dir := (player_ref.global_position - global_position).normalized()
 		player_ref.take_damage(SLAM_DIRECT_DMG, dir)
 	if phase == 2:
 		_slam_shockwave()
+		_slam_arc_globs()
+
+
+func _slam_arc_globs() -> void:
+	# Fan of globs fired forward-upward on slam landing — forces the player to move
+	var dir_x : float = 1.0 if facing_right else -1.0
+	for i in SLAM_ARC_COUNT:
+		var glob  := EMBER_GLOB_SCENE.instantiate() as Area2D
+		var t     : float  = float(i) / float(SLAM_ARC_COUNT - 1)   # 0.0 → 1.0
+		# Fan sweeps from steep-forward to shallower-forward in the facing direction
+		var angle : float  = lerpf(-0.90, -0.25, t) * dir_x
+		var vel   : Vector2 = Vector2(cos(angle), sin(angle)) * SLAM_ARC_SPEED
+		glob.global_position = global_position + Vector2(dir_x * 20.0, -30.0)
+		glob.setup(vel)
+		get_parent().add_child(glob)
+		AudioManager.play("ember_glob")
 
 
 func _slam_shockwave() -> void:
@@ -501,7 +535,7 @@ func _slam_shockwave() -> void:
 		return
 	if not is_instance_valid(player_ref):
 		return
-	var dist := abs(player_ref.global_position.x - global_position.x)
+	var dist := absf(player_ref.global_position.x - global_position.x)
 	if dist >= SLAM_RADIUS and dist < SLAM_RADIUS * 2.0 and player_ref.is_on_floor():
 		var dir := (player_ref.global_position - global_position).normalized()
 		player_ref.take_damage(SLAM_WAVE_DMG, dir)
@@ -511,15 +545,31 @@ func _state_recoil(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, 0.0, 1600.0 * delta)
 	if state_timer <= 0.0:
 		state       = State.IDLE
-		state_timer = IDLE_DUR
+		state_timer = IDLE_DUR_P1 if phase == 1 else IDLE_DUR_P2
 
 
 func _state_phase2_enter() -> void:
 	velocity.x = 0.0
+	# Fire the ring burst once at the start of the transition
+	if not _p2_burst_done:
+		_p2_burst_done = true
+		_fire_p2_burst()
 	if state_timer <= 0.0:
 		state       = State.IDLE
-		state_timer = IDLE_DUR
+		state_timer = IDLE_DUR_P2
 		slam_ready  = true
+
+
+func _fire_p2_burst() -> void:
+	# Ring of ember globs fired in all directions — the furnace vents its core
+	for i in BURST_COUNT:
+		var glob  := EMBER_GLOB_SCENE.instantiate() as Area2D
+		var angle : float  = (TAU / float(BURST_COUNT)) * float(i)
+		var vel   : Vector2 = Vector2(cos(angle), sin(angle)) * BURST_SPEED
+		glob.global_position = global_position + Vector2(0.0, -40.0)
+		glob.setup(vel)
+		get_parent().add_child(glob)
+		AudioManager.play("ember_glob")
 
 
 # ── Facing & animation ───────────────────────────────────────────────────────────
@@ -679,6 +729,7 @@ func _reset() -> void:
 	rain_cd             = 0.0
 	slam_ready          = true
 	_phase2_triggered   = false
+	_p2_burst_done      = false
 	player_ref          = null
 	velocity            = Vector2.ZERO
 	_lore_line_idx      = 0

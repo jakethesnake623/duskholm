@@ -6,7 +6,7 @@ extends CanvasLayer
 ## its atmospheric colour. The player dot is always visible.
 
 const WORLD_ORIGIN := Vector2(-1280.0, 0.0)
-const WORLD_SIZE   := Vector2(5120.0, 2160.0)
+const WORLD_SIZE   := Vector2(5120.0, 2880.0)
 
 # Minimap panel position and size (in 1280×720 viewport/screen pixels)
 const PANEL_POS  := Vector2(1098.0, 8.0)
@@ -23,7 +23,10 @@ const ROOM_DATA := {
 	"room7": [Rect2( 1280,  720, 1280, 720), Color(0.36, 0.28, 0.16, 0.88)],
 	"room4": [Rect2(    0, 1440, 1280, 720), Color(0.44, 0.14, 0.10, 0.88)],
 	"room5": [Rect2( 1280, 1440, 1280, 720), Color(0.22, 0.10, 0.36, 0.88)],
-	"room8": [Rect2( 2560, 1440, 1280, 720), Color(0.38, 0.18, 0.06, 0.88)],
+	"room8":  [Rect2( 2560, 1440, 1280, 720), Color(0.38, 0.18, 0.06, 0.88)],
+	"room16": [Rect2(-1280, 2160, 1280, 720), Color(0.06, 0.18, 0.22, 0.88)],
+	"room17": [Rect2(    0, 2160, 1280, 720), Color(0.24, 0.16, 0.08, 0.88)],
+	"room18": [Rect2( 1280, 2160, 1280, 720), Color(0.28, 0.10, 0.04, 0.88)],
 }
 
 var _player     : CharacterBody2D = null
@@ -87,9 +90,9 @@ func _build_panel() -> void:
 
 	# [DEV] Room numbers — remove before ship
 	const ROOM_NUMBERS := {
-		"room0": "0", "room1": "1", "room2": "2", "room3": "3",
-		"room4": "4", "room5": "5", "room6": "6", "room7": "7",
-		"room8": "8",
+		"room0": "0",  "room1": "1",  "room2": "2",  "room3": "3",
+		"room4": "4",  "room5": "5",  "room6": "6",  "room7": "7",
+		"room8": "8",  "room16": "16", "room17": "17", "room18": "18",
 	}
 	for rid in ROOM_DATA:
 		var mrect := _world_to_map(ROOM_DATA[rid][0], map_area)
@@ -131,15 +134,15 @@ func _map_area() -> Rect2:
 
 
 func _world_to_map(world_rect: Rect2, map_area: Rect2) -> Rect2:
-	var scale := map_area.size / WORLD_SIZE
-	var tl    := map_area.position + (world_rect.position - WORLD_ORIGIN) * scale
-	return Rect2(tl.round(), (world_rect.size * scale).round())
+	var map_scale := map_area.size / WORLD_SIZE
+	var tl        := map_area.position + (world_rect.position - WORLD_ORIGIN) * map_scale
+	return Rect2(tl.round(), (world_rect.size * map_scale).round())
 
 
 func _world_pos_to_screen(world_pos: Vector2) -> Vector2:
-	var map_area := _map_area()
-	var scale    := map_area.size / WORLD_SIZE
-	return map_area.position + (world_pos - WORLD_ORIGIN) * scale
+	var map_area  := _map_area()
+	var map_scale := map_area.size / WORLD_SIZE
+	return map_area.position + (world_pos - WORLD_ORIGIN) * map_scale
 
 
 # ── Signals ─────────────────────────────────────────────────────────────────────

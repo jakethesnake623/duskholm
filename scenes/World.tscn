@@ -1,4 +1,4 @@
-[gd_scene load_steps=41 format=3]
+[gd_scene load_steps=44 format=3]
 
 [ext_resource type="Script" path="res://scripts/World.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2"]
@@ -18,6 +18,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ZipLine.tscn" id="16"]
 [ext_resource type="PackedScene" path="res://scenes/Boss2.tscn" id="17"]
 [ext_resource type="PackedScene" path="res://scenes/BossHealthBar2.tscn" id="18"]
+[ext_resource type="PackedScene" path="res://scenes/CinderHound.tscn" id="19"]
 
 ; ── Shared collision shapes ────────────────────────────────────────────────────
 [sub_resource type="RectangleShape2D" id="10"]
@@ -80,6 +81,14 @@ size = Vector2(20.0, 1440.0)
 
 [sub_resource type="RectangleShape2D" id="26"]
 size = Vector2(20.0, 360.0)
+
+; ── Tier 4 descent shaft — Room 5 floor split ─────────────────────────────────
+; Gap at x:1880–2000 (120px, center 1940). Below Room 5 gap → Room 18.
+[sub_resource type="RectangleShape2D" id="29"]
+size = Vector2(600.0, 40.0)
+
+[sub_resource type="RectangleShape2D" id="30"]
+size = Vector2(560.0, 40.0)
 
 ; ══════════════════════════════════════════════════════════════════════════════
 [node name="World" type="Node2D"]
@@ -820,9 +829,9 @@ monitorable = false
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Transitions/VerticalTransition"]
 shape = SubResource("19")
 
-; ── Death zone (below Room 4) ──────────────────────────────────────────────────
+; ── Death zone (below Tier 4 rooms) ───────────────────────────────────────────
 [node name="DeathZone" type="Area2D" parent="."]
-position = Vector2(1280.0, 2230.0)
+position = Vector2(640.0, 2960.0)
 monitoring = true
 monitorable = false
 
@@ -869,6 +878,11 @@ well_name = "The Entrance"
 position = Vector2(320.0, 1380.0)
 room_id = "room3"
 well_name = "The Vault"
+
+[node name="SoulWellRoom17" parent="." instance=ExtResource("6")]
+position = Vector2(640.0, 2840.0)
+room_id = "room17"
+well_name = "The Ashen Corridor"
 
 ; ── Room 4: The Sunken Hall  (x: 0–1280, y: 1440–2160) ───────────────────────
 [node name="Room4" type="Node2D" parent="."]
@@ -1103,6 +1117,20 @@ position = Vector2(3850.0, 1800.0)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRoom8Right"]
 shape = SubResource("24")
 
+; Left edge of Room 16 — x: -1280, y: 2160–2880
+[node name="WallRoom16Left" type="StaticBody2D" parent="Walls"]
+position = Vector2(-1290.0, 2520.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRoom16Left"]
+shape = SubResource("23")
+
+; Right edge of Room 18 — x: 2560, y: 2160–2880
+[node name="WallRoom18Right" type="StaticBody2D" parent="Walls"]
+position = Vector2(2570.0, 2520.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRoom18Right"]
+shape = SubResource("23")
+
 ; ── Boss ───────────────────────────────────────────────────────────────────────
 [node name="Boss" parent="." instance=ExtResource("11")]
 position = Vector2(900.0, 2058.0)
@@ -1112,18 +1140,33 @@ position = Vector2(900.0, 2058.0)
 position = Vector2(1280.0, 1960.0)
 
 ; ── Room 5: The Beyond  (x: 1280–2560, y: 1440–2160) ────────────────────────
+; Floor split at x:1880–2000 — 120px descent shaft drops into Room 18 below.
+; Room 4's floor is SOLID — descent to Tier 4 is post-Warden only (via Room 5).
 [node name="Room5" type="Node2D" parent="."]
 
-[node name="Ground" type="StaticBody2D" parent="Room5"]
-position = Vector2(1920.0, 2140.0)
+[node name="GroundLeft" type="StaticBody2D" parent="Room5"]
+position = Vector2(1580.0, 2140.0)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Room5/Ground"]
-shape = SubResource("12")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room5/GroundLeft"]
+shape = SubResource("29")
 
-[node name="Visual" type="ColorRect" parent="Room5/Ground"]
-offset_left = -640.0
+[node name="Visual" type="ColorRect" parent="Room5/GroundLeft"]
+offset_left = -300.0
 offset_top = -20.0
-offset_right = 640.0
+offset_right = 300.0
+offset_bottom = 20.0
+color = Color(0.10, 0.07, 0.12, 1)
+
+[node name="GroundRight" type="StaticBody2D" parent="Room5"]
+position = Vector2(2280.0, 2140.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room5/GroundRight"]
+shape = SubResource("30")
+
+[node name="Visual" type="ColorRect" parent="Room5/GroundRight"]
+offset_left = -280.0
+offset_top = -20.0
+offset_right = 280.0
 offset_bottom = 20.0
 color = Color(0.10, 0.07, 0.12, 1)
 
@@ -1311,6 +1354,336 @@ position = Vector2(2560.0, 1960.0)
 ; ── Boss 2: FORGE-7 ────────────────────────────────────────────────────────────
 [node name="Boss2" parent="." instance=ExtResource("17")]
 position = Vector2(3200.0, 2095.0)
+
+; ── Room 16: The Drowned Halls  (x: -1280–0, y: 2160–2880) ──────────────────
+; Corroded aqueducts — drowned machines half-buried in sediment.
+; Accessed by walking left from Room 17. Sealed above by a stone ceiling.
+[node name="Room16" type="Node2D" parent="."]
+
+[node name="Ceiling" type="StaticBody2D" parent="Room16"]
+position = Vector2(-640.0, 2160.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room16/Ceiling"]
+shape = SubResource("27")
+
+[node name="Visual" type="ColorRect" parent="Room16/Ceiling"]
+offset_left = -640.0
+offset_top = -10.0
+offset_right = 640.0
+offset_bottom = 10.0
+color = Color(0.06, 0.10, 0.12, 1)
+
+[node name="Floor" type="StaticBody2D" parent="Room16"]
+position = Vector2(-640.0, 2860.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room16/Floor"]
+shape = SubResource("12")
+
+[node name="Visual" type="ColorRect" parent="Room16/Floor"]
+offset_left = -640.0
+offset_top = -20.0
+offset_right = 640.0
+offset_bottom = 20.0
+color = Color(0.06, 0.10, 0.12, 1)
+
+[node name="PlatformA" type="StaticBody2D" parent="Room16"]
+position = Vector2(-1050.0, 2540.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room16/PlatformA"]
+shape = SubResource("14")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room16/PlatformA"]
+offset_left = -80.0
+offset_top = -12.0
+offset_right = 80.0
+offset_bottom = 12.0
+color = Color(0.07, 0.12, 0.14, 1)
+
+[node name="PlatformB" type="StaticBody2D" parent="Room16"]
+position = Vector2(-750.0, 2380.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room16/PlatformB"]
+shape = SubResource("17")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room16/PlatformB"]
+offset_left = -70.0
+offset_top = -12.0
+offset_right = 70.0
+offset_bottom = 12.0
+color = Color(0.07, 0.12, 0.14, 1)
+
+[node name="PlatformC" type="StaticBody2D" parent="Room16"]
+position = Vector2(-480.0, 2620.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room16/PlatformC"]
+shape = SubResource("15")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room16/PlatformC"]
+offset_left = -60.0
+offset_top = -12.0
+offset_right = 60.0
+offset_bottom = 12.0
+color = Color(0.07, 0.12, 0.14, 1)
+
+[node name="PlatformD" type="StaticBody2D" parent="Room16"]
+position = Vector2(-220.0, 2480.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room16/PlatformD"]
+shape = SubResource("13")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room16/PlatformD"]
+offset_left = -90.0
+offset_top = -12.0
+offset_right = 90.0
+offset_bottom = 12.0
+color = Color(0.07, 0.12, 0.14, 1)
+
+[node name="HoundA" parent="Room16" instance=ExtResource("19")]
+position = Vector2(-1050.0, 2840.0)
+
+[node name="HoundB" parent="Room16" instance=ExtResource("19")]
+position = Vector2(-640.0, 2840.0)
+
+[node name="HoundC" parent="Room16" instance=ExtResource("19")]
+position = Vector2(-280.0, 2840.0)
+
+; ── Room 17: The Ashen Corridor  (x: 0–1280, y: 2160–2880) ──────────────────
+; Ash-choked passage — entered from Room 18 by walking left.
+; Room 4 floor above is SOLID; no vertical shaft here.
+[node name="Room17" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Room17"]
+position = Vector2(640.0, 2860.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room17/Floor"]
+shape = SubResource("12")
+
+[node name="Visual" type="ColorRect" parent="Room17/Floor"]
+offset_left = -640.0
+offset_top = -20.0
+offset_right = 640.0
+offset_bottom = 20.0
+color = Color(0.12, 0.09, 0.06, 1)
+
+[node name="PlatformA" type="StaticBody2D" parent="Room17"]
+position = Vector2(180.0, 2680.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room17/PlatformA"]
+shape = SubResource("14")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room17/PlatformA"]
+offset_left = -80.0
+offset_top = -12.0
+offset_right = 80.0
+offset_bottom = 12.0
+color = Color(0.16, 0.11, 0.07, 1)
+
+[node name="PlatformB" type="StaticBody2D" parent="Room17"]
+position = Vector2(790.0, 2620.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room17/PlatformB"]
+shape = SubResource("16")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room17/PlatformB"]
+offset_left = -100.0
+offset_top = -12.0
+offset_right = 100.0
+offset_bottom = 12.0
+color = Color(0.16, 0.11, 0.07, 1)
+
+[node name="PlatformC" type="StaticBody2D" parent="Room17"]
+position = Vector2(1090.0, 2450.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room17/PlatformC"]
+shape = SubResource("17")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room17/PlatformC"]
+offset_left = -70.0
+offset_top = -12.0
+offset_right = 70.0
+offset_bottom = 12.0
+color = Color(0.16, 0.11, 0.07, 1)
+
+[node name="HoundD" parent="Room17" instance=ExtResource("19")]
+position = Vector2(200.0, 2840.0)
+
+[node name="HoundE" parent="Room17" instance=ExtResource("19")]
+position = Vector2(700.0, 2840.0)
+
+[node name="HoundF" parent="Room17" instance=ExtResource("19")]
+position = Vector2(1050.0, 2840.0)
+
+; ── Room 18: The Deep Ironworks  (x: 1280–2560, y: 2160–2880) ────────────────
+; Forge-floors lit by molten seams — the machine heart is close now.
+; Entered by falling through the Room 5 floor gap (x:1880–2000).
+; Room 5's split floor acts as the ceiling. AscentA–D allow climbing back up.
+[node name="Room18" type="Node2D" parent="."]
+
+[node name="Floor" type="StaticBody2D" parent="Room18"]
+position = Vector2(1920.0, 2860.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room18/Floor"]
+shape = SubResource("12")
+
+[node name="Visual" type="ColorRect" parent="Room18/Floor"]
+offset_left = -640.0
+offset_top = -20.0
+offset_right = 640.0
+offset_bottom = 20.0
+color = Color(0.14, 0.07, 0.04, 1)
+
+[node name="PlatformA" type="StaticBody2D" parent="Room18"]
+position = Vector2(1430.0, 2500.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room18/PlatformA"]
+shape = SubResource("14")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room18/PlatformA"]
+offset_left = -80.0
+offset_top = -12.0
+offset_right = 80.0
+offset_bottom = 12.0
+color = Color(0.20, 0.10, 0.05, 1)
+
+[node name="PlatformB" type="StaticBody2D" parent="Room18"]
+position = Vector2(1670.0, 2350.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room18/PlatformB"]
+shape = SubResource("16")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room18/PlatformB"]
+offset_left = -100.0
+offset_top = -12.0
+offset_right = 100.0
+offset_bottom = 12.0
+color = Color(0.20, 0.10, 0.05, 1)
+
+[node name="PlatformC" type="StaticBody2D" parent="Room18"]
+position = Vector2(1910.0, 2560.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room18/PlatformC"]
+shape = SubResource("17")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room18/PlatformC"]
+offset_left = -70.0
+offset_top = -12.0
+offset_right = 70.0
+offset_bottom = 12.0
+color = Color(0.20, 0.10, 0.05, 1)
+
+[node name="PlatformD" type="StaticBody2D" parent="Room18"]
+position = Vector2(2150.0, 2400.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room18/PlatformD"]
+shape = SubResource("13")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room18/PlatformD"]
+offset_left = -90.0
+offset_top = -12.0
+offset_right = 90.0
+offset_bottom = 12.0
+color = Color(0.20, 0.10, 0.05, 1)
+
+[node name="PlatformE" type="StaticBody2D" parent="Room18"]
+position = Vector2(2400.0, 2550.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room18/PlatformE"]
+shape = SubResource("15")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room18/PlatformE"]
+offset_left = -60.0
+offset_top = -12.0
+offset_right = 60.0
+offset_bottom = 12.0
+color = Color(0.20, 0.10, 0.05, 1)
+
+; Ascent platforms — left of the descent shaft (gap at x:1880–2000, center 1940).
+; Right edge of each platform is at x=1880 so the player steps off and jumps
+; directly into the gap opening above.
+[node name="AscentA" type="StaticBody2D" parent="Room18"]
+position = Vector2(1800.0, 2730.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room18/AscentA"]
+shape = SubResource("14")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room18/AscentA"]
+offset_left = -80.0
+offset_top = -12.0
+offset_right = 80.0
+offset_bottom = 12.0
+color = Color(0.26, 0.13, 0.06, 1)
+
+[node name="AscentB" type="StaticBody2D" parent="Room18"]
+position = Vector2(1800.0, 2580.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room18/AscentB"]
+shape = SubResource("14")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room18/AscentB"]
+offset_left = -80.0
+offset_top = -12.0
+offset_right = 80.0
+offset_bottom = 12.0
+color = Color(0.26, 0.13, 0.06, 1)
+
+[node name="AscentC" type="StaticBody2D" parent="Room18"]
+position = Vector2(1800.0, 2430.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room18/AscentC"]
+shape = SubResource("14")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room18/AscentC"]
+offset_left = -80.0
+offset_top = -12.0
+offset_right = 80.0
+offset_bottom = 12.0
+color = Color(0.26, 0.13, 0.06, 1)
+
+[node name="AscentD" type="StaticBody2D" parent="Room18"]
+position = Vector2(1800.0, 2280.0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Room18/AscentD"]
+shape = SubResource("14")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Room18/AscentD"]
+offset_left = -80.0
+offset_top = -12.0
+offset_right = 80.0
+offset_bottom = 12.0
+color = Color(0.26, 0.13, 0.06, 1)
+
+[node name="ChestRoom18" parent="Room18" instance=ExtResource("14")]
+position = Vector2(1670.0, 2325.0)
+reward_type = "embers"
+reward_amount = 350
+
+[node name="HoundG" parent="Room18" instance=ExtResource("19")]
+position = Vector2(1380.0, 2840.0)
+
+[node name="HoundH" parent="Room18" instance=ExtResource("19")]
+position = Vector2(1700.0, 2840.0)
+
+[node name="HoundI" parent="Room18" instance=ExtResource("19")]
+position = Vector2(2000.0, 2840.0)
+
+[node name="HoundJ" parent="Room18" instance=ExtResource("19")]
+position = Vector2(2350.0, 2840.0)
 
 ; ── HUD ────────────────────────────────────────────────────────────────────────
 [node name="HUD" parent="." instance=ExtResource("3")]

@@ -554,13 +554,13 @@ func _update_visuals(delta: float) -> void:
 		t_scale = Vector2(1.0, 0.98 + bob)
 		t_rot   = clampf(velocity.x / 520.0, -0.10, 0.10)
 
-	# Smooth towards target (fast enough to feel responsive)
-	visual.scale    = visual.scale.lerp(t_scale, 14.0 * delta)
+	# Bake facing sign into the scale target so the lerp always converges
+	# correctly. Without this, a positive t_scale.x would fight a negative
+	# scale.x (facing left) each frame, oscillating near 0 and making the
+	# character appear flat/invisible when moving left.
+	var face: float = 1.0 if facing_right else -1.0
+	visual.scale    = visual.scale.lerp(Vector2(t_scale.x * face, t_scale.y), 14.0 * delta)
 	visual.rotation = lerpf(visual.rotation, t_rot, 10.0 * delta)
-
-	# Flip to face direction (applied as scale.x sign, not rotation)
-	var face := 1.0 if facing_right else -1.0
-	visual.scale.x = abs(visual.scale.x) * face
 
 	# ── Modulate (colour effects) ──────────────────────────────────────────────
 	if debug_invincible:
