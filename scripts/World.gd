@@ -92,7 +92,16 @@ func _process(_delta: float) -> void:
 func _update_camera_room() -> void:
 	var pos := player.global_position
 	var rid : String
-	if pos.y >= 2880 and pos.x < 0:
+	if pos.y >= 3600 and pos.x < 0:
+		_set_room(-1280, 0, 3600, 4320)
+		rid = "room23"
+	elif pos.y >= 3600 and pos.x >= 1280:
+		_set_room(1280, 2560, 3600, 4320)
+		rid = "room25"
+	elif pos.y >= 3600:
+		_set_room(0, 1280, 3600, 4320)
+		rid = "room24"
+	elif pos.y >= 2880 and pos.x < 0:
 		_set_room(-1280, 0, 2880, 3600)
 		rid = "room20"
 	elif pos.y >= 2880 and pos.x >= 1280:
@@ -155,6 +164,9 @@ func _update_camera_room() -> void:
 			"room20": "20 — The Sunken Foundry",
 			"room21": "21 — The Gear Tombs",
 			"room22": "22 — The Engine Room",
+			"room23": "23 — The Drowned Engine",
+			"room24": "24 — The Bone Shaft",
+			"room25": "25 — The Molten Core",
 		}
 		_room_label.text = "[DEV] Room " + NAMES.get(rid, rid)
 
