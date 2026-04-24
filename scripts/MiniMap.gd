@@ -6,7 +6,7 @@ extends CanvasLayer
 ## its atmospheric colour. The player dot is always visible.
 
 const WORLD_ORIGIN := Vector2(-1280.0, 0.0)
-const WORLD_SIZE   := Vector2(5120.0, 4320.0)
+const WORLD_SIZE   := Vector2(5120.0, 5040.0)
 
 # Minimap panel position and size (in 1280×720 viewport/screen pixels)
 const PANEL_POS  := Vector2(1098.0, 8.0)
@@ -34,6 +34,9 @@ const ROOM_DATA := {
 	"room23": [Rect2(-1280, 3600, 1280, 720), Color(0.02, 0.05, 0.10, 0.88)],
 	"room24": [Rect2(    0, 3600, 1280, 720), Color(0.10, 0.08, 0.04, 0.88)],
 	"room25": [Rect2( 1280, 3600, 1280, 720), Color(0.22, 0.04, 0.02, 0.88)],
+	"room26": [Rect2(-1280, 4320, 1280, 720), Color(0.02, 0.01, 0.04, 0.88)],
+	"room27": [Rect2(    0, 4320, 1280, 720), Color(0.08, 0.06, 0.04, 0.88)],
+	"room28": [Rect2( 1280, 4320, 1280, 720), Color(0.18, 0.02, 0.01, 0.88)],
 }
 
 var _player     : CharacterBody2D = null
@@ -102,6 +105,7 @@ func _build_panel() -> void:
 		"room8": "8",  "room16": "16", "room17": "17", "room18": "18",
 		"room19": "19", "room20": "20", "room21": "21", "room22": "22",
 		"room23": "23", "room24": "24", "room25": "25",
+		"room26": "26", "room27": "27", "room28": "28",
 	}
 	for rid in ROOM_DATA:
 		var mrect := _world_to_map(ROOM_DATA[rid][0], map_area)
